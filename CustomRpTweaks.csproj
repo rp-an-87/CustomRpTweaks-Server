@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>CustomRpTweaks</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <Version>1.0.0</Version>
+    <!-- The two lines below will set the output path for the binaries -->
+    <OutputPath>bin\$(Configuration)\$(ProjectName)\$(AssemblyName)-$(Version)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SPTushonka.Common" Version="4.1.6"/>
+    <PackageReference Include="SPTushonka.DI" Version="4.1.6"/>
+    <PackageReference Include="SPTushonka.Server.Core" Version="4.1.6"/>
+    <PackageReference Include="SPTarkov.Server.Web" Version="4.1.2" ExcludeAssets="runtime"/>
+  </ItemGroup>
+
+  <Target Name="CopyToSPT" AfterTargets="AfterBuild" Condition="'$(SPTPath)' != ''">
+    <!-- Defined here, not at the top: SPTPath comes from CustomRpTweaks.csproj.user, which MSBuild loads after the project body -->
+    <PropertyGroup>
+      <ModsDirectoryPath>$(SPTPath)\user\mods\$(MSBuildProjectName)</ModsDirectoryPath>
+    </PropertyGroup>
+    <Message Importance="high" Text="Copying mods to $(ModsDirectoryPath)" />
+    <ItemGroup>
+      <FilesToCopy Include="$(OutputPath)$(TargetName)$(TargetExt)" />
+      <FilesToCopy Include="$(OutputPath)$(TargetName).pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(FilesToCopy)" DestinationFolder="$(ModsDirectoryPath)" ContinueOnError="false" />
+    <!-- config.json is only copied when missing so rebuilding never overwrites your edits -->
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\config.json" DestinationFolder="$(ModsDirectoryPath)" Condition="!Exists('$(ModsDirectoryPath)\config.json')" />
+    <Message Text="Files copied" />
+  </Target>
+
+</Project>

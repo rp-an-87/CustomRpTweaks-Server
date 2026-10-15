@@ -1,0 +1,46 @@
+{
+  "extracts": {
+    "chances": {
+      "enabled": true,
+      "locations": {
+        "bigmap": 100,
+        "interchange": 100,
+        "laboratory": 100,
+        "lighthouse": 100,
+        "shoreline": 100,
+        "tarkovstreets": 100,
+        "woods": 100
+      }
+    },
+    "coop": {
+      "enabled": true,
+      "amount": 3000
+    }
+  },
+  "btr": {
+    "enabled": true,
+    "locations": {
+      "Woods": {
+        "chance": 100,
+        "stopDuration": { "min": 90.0, "max": 150.0 },
+        "spawnTime": { "min": 60.0, "max": 180.0 }
+      },
+      "TarkovStreets": {
+        "chance": 100,
+        "stopDuration": { "min": 90.0, "max": 150.0 },
+        "spawnTime": { "min": 60.0, "max": 180.0 }
+      }
+    }
+  },
+  "containers": {
+    "allowItems": {
+      "thiccItemCase": true,
+      "itemCase": true,
+      "items": {
+        "secureContainers": true,
+        "ammoBoxes": true,
+        "specials": true
+      }
+    }
+  }
+}
