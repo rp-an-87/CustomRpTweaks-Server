@@ -2,6 +2,8 @@ using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers.Server;
+using SPTarkov.Server.Core.Models.Common;
+using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Mod;
@@ -31,7 +33,7 @@ public record ModMetadata : IModMetadata
 
 // Applies the tweaks from config.json once the database is loaded.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload + 1)]
-public class TweaksApplier(LocationTable locationTable, TemplateTable templateTable, ISptLogger<TweaksApplier> logger, ModHelper modHelper) : IOnLoad
+public class TweaksApplier(LocationTable locationTable, TemplateTable templateTable, TraderConfig traderConfig, ISptLogger<TweaksApplier> logger, ModHelper modHelper) : IOnLoad
 {
     private const string EuroId = "569668774bdc2da2298b4568";
     private const string ItemCaseId = "59fb042886f7746c5005a7b2";
@@ -41,6 +43,14 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
     private static readonly string[] SpecialNodes =
         ["62e9103049c018f425059f38", "54009119af1c881c07000029", "65ddcc7aef36f6413d0829b9", "6672e40ebb23210ae87d39eb"];
 
+    private const int MaxSpecialSlots = 6;
+    // pockets template, whether it is the Unheard Edition one, and the fixed _id of its SpecialSlot4, 5 and 6
+    private static readonly (string Id, bool Unheard, string[] SlotIds)[] PocketsTemplates =
+    [
+        ("627a4e6b255f7527fb05a0f6", false, ["281451b393acbc1cabadc05f", "0bd4dc029dcc64b768cbfd19", "6c8dfaff68d5e3a726708ff6"]),
+        ("65e080be269cbd5c5005e529", true, ["8db5e273cbf171000d279136", "5d1f0a7b9e3c4a2864b0e1c7", "3a9c7e14d2b85f60a1c4e9b2"]),
+    ];
+
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
         var modPath = modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
@@ -49,6 +59,8 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         ApplyExtracts(config.Extracts);
         ApplyBtr(config.Btr);
         ApplyContainers(config.Containers);
+        ApplyPockets(config.Pockets);
+        ApplyTraderRestock(config.TraderRestock);
         return Task.CompletedTask;
     }
 
@@ -163,6 +175,72 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         if (allow.ItemCase) AddToFilter(ItemCaseId, "Item Case", nodes);
     }
 
+    // Special slots are plain data: the client builds one view per slot named SpecialSlotN on the pockets item.
+    // We clone SpecialSlot3 (same item filters) into SpecialSlot4.. with fixed ids so they stay stable between restarts.
+    private void ApplyPockets(PocketsConfig? cfg)
+    {
+        if (cfg is not { Enabled: true })
+        {
+            return;
+        }
+
+        foreach (var (pocketsId, unheard, slotIds) in PocketsTemplates)
+        {
+            var wanted = Math.Clamp(unheard ? cfg.SpecialSlotsUnheard : cfg.SpecialSlots, 3, MaxSpecialSlots);
+            if (!templateTable.Items.TryGetValue(pocketsId, out var pockets) || pockets.Properties?.Slots is null)
+            {
+                logger.Warning($"[CustomRpTweaks] Pockets template {pocketsId} not found, skipped");
+                continue;
+            }
+
+            var slots = pockets.Properties.Slots.ToList();
+            var template = slots.FirstOrDefault(sl => sl.Name == "SpecialSlot3");
+            if (template is null)
+            {
+                logger.Warning($"[CustomRpTweaks] Pockets template {pocketsId} has no SpecialSlot3, skipped");
+                continue;
+            }
+
+            for (var n = 4; n <= wanted; n++)
+            {
+                var name = $"SpecialSlot{n}";
+                if (slots.Any(sl => sl.Name == name))
+                {
+                    continue;
+                }
+
+                slots.Add(template with { Name = name, Id = new MongoId(slotIds[n - 4]) });
+            }
+
+            pockets.Properties.Slots = slots;
+            logger.Info($"[CustomRpTweaks] Pockets {pocketsId} now has {slots.Count(sl => sl.Name?.StartsWith("SpecialSlot") == true)} special slots");
+        }
+    }
+
+    // Caps each trader's restock interval, never lengthens it: a trader that already restocks faster keeps its own timer.
+    private void ApplyTraderRestock(TraderRestockConfig? cfg)
+    {
+        if (cfg is not { Enabled: true })
+        {
+            return;
+        }
+
+        var excluded = cfg.ExcludedTraders.Select(id => new MongoId(id)).ToHashSet();
+        foreach (var trader in traderConfig.UpdateTime.Where(t => !excluded.Contains(t.TraderId)))
+        {
+            var (oldMin, oldMax) = (trader.Seconds.Min, trader.Seconds.Max);
+            trader.Seconds.Min = Math.Min(oldMin, cfg.MinSeconds);
+            trader.Seconds.Max = Math.Min(oldMax, cfg.MaxSeconds);
+            if (trader.Seconds.Min != oldMin || trader.Seconds.Max != oldMax)
+            {
+                logger.Info($"[CustomRpTweaks] Trader {trader.TraderId} restock {oldMin}-{oldMax}s -> {trader.Seconds.Min}-{trader.Seconds.Max}s");
+            }
+        }
+
+        // Traders without their own entry use the default, which can also be too long
+        traderConfig.UpdateTimeDefault = Math.Min(traderConfig.UpdateTimeDefault, cfg.MaxSeconds);
+    }
+
     private void AddToFilter(string itemId, string label, List<string> nodes)
     {
         var items = templateTable.Items;
@@ -209,6 +287,26 @@ public class TweaksConfig
     [JsonPropertyName("extracts")] public ExtractsConfig? Extracts { get; set; }
     [JsonPropertyName("btr")] public BtrConfig? Btr { get; set; }
     [JsonPropertyName("containers")] public ContainersConfig? Containers { get; set; }
+    [JsonPropertyName("pockets")] public PocketsConfig? Pockets { get; set; }
+    [JsonPropertyName("traderRestock")] public TraderRestockConfig? TraderRestock { get; set; }
+}
+
+public class TraderRestockConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // restock interval limits in seconds (2400 = 40 min, 5400 = 1.5 h)
+    [JsonPropertyName("minSeconds")] public int MinSeconds { get; set; } = 2400;
+    [JsonPropertyName("maxSeconds")] public int MaxSeconds { get; set; } = 5400;
+    // trader ids left untouched: Fence and Ref
+    [JsonPropertyName("excludedTraders")] public List<string> ExcludedTraders { get; set; } = ["579dc571d53a0658a154fbec", "6617beeaa9cfa777ca915b7c"];
+}
+
+public class PocketsConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // total special slots (3 is vanilla, max 6) for the standard pockets and for the Unheard Edition ones
+    [JsonPropertyName("specialSlots")] public int SpecialSlots { get; set; } = 3;
+    [JsonPropertyName("specialSlotsUnheard")] public int SpecialSlotsUnheard { get; set; } = 6;
 }
 
 public class ExtractsConfig

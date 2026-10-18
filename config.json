@@ -42,5 +42,16 @@
         "specials": true
       }
     }
+  },
+  "pockets": {
+    "enabled": true,
+    "specialSlots": 3,
+    "specialSlotsUnheard": 6
+  },
+  "traderRestock": {
+    "enabled": true,
+    "minSeconds": 2400,
+    "maxSeconds": 5400,
+    "excludedTraders": ["579dc571d53a0658a154fbec", "6617beeaa9cfa777ca915b7c"]
   }
 }
