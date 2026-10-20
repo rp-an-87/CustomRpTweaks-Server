@@ -53,5 +53,10 @@
     "minSeconds": 2400,
     "maxSeconds": 5400,
     "excludedTraders": ["579dc571d53a0658a154fbec", "6617beeaa9cfa777ca915b7c"]
+  },
+  "insurance": {
+    "enabled": true,
+    "disableKeys": true,
+    "disableKeycards": false
   }
 }

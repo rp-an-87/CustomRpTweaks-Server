@@ -61,6 +61,7 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         ApplyContainers(config.Containers);
         ApplyPockets(config.Pockets);
         ApplyTraderRestock(config.TraderRestock);
+        ApplyInsurance(config.Insurance);
         return Task.CompletedTask;
     }
 
@@ -241,6 +242,29 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         traderConfig.UpdateTimeDefault = Math.Min(traderConfig.UpdateTimeDefault, cfg.MaxSeconds);
     }
 
+    // The client decides what can be insured from the item templates, so flagging them is enough to drop them from the
+    // insurance screens, including "insure all".
+    private void ApplyInsurance(InsuranceConfig? cfg)
+    {
+        if (cfg is not { Enabled: true })
+        {
+            return;
+        }
+
+        var parents = new List<MongoId>();
+        if (cfg.DisableKeys) parents.Add(BaseClasses.KEY_MECHANICAL);
+        if (cfg.DisableKeycards) parents.Add(BaseClasses.KEYCARD);
+
+        var disabled = 0;
+        foreach (var item in templateTable.Items.Values.Where(i => parents.Contains(i.Parent) && i.Properties is not null))
+        {
+            item.Properties!.InsuranceDisabled = true;
+            disabled++;
+        }
+
+        logger.Info($"[CustomRpTweaks] {disabled} key items can no longer be insured");
+    }
+
     private void AddToFilter(string itemId, string label, List<string> nodes)
     {
         var items = templateTable.Items;
@@ -289,6 +313,16 @@ public class TweaksConfig
     [JsonPropertyName("containers")] public ContainersConfig? Containers { get; set; }
     [JsonPropertyName("pockets")] public PocketsConfig? Pockets { get; set; }
     [JsonPropertyName("traderRestock")] public TraderRestockConfig? TraderRestock { get; set; }
+    [JsonPropertyName("insurance")] public InsuranceConfig? Insurance { get; set; }
+}
+
+public class InsuranceConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // mechanical keys can't be insured
+    [JsonPropertyName("disableKeys")] public bool DisableKeys { get; set; } = true;
+    // keycards can't be insured
+    [JsonPropertyName("disableKeycards")] public bool DisableKeycards { get; set; }
 }
 
 public class TraderRestockConfig
