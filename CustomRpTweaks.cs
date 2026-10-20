@@ -41,7 +41,7 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
     private static readonly string[] SecureContainerNodes = ["5448bf274bdc2dfc2f8b456a"];
     private static readonly string[] AmmoBoxNodes = ["543be5cb4bdc2deb348b4568"];
     private static readonly string[] SpecialNodes =
-        ["62e9103049c018f425059f38", "54009119af1c881c07000029", "65ddcc7aef36f6413d0829b9", "6672e40ebb23210ae87d39eb"];
+        ["62e9103049c018f425059f38", "5447e0e74bdc2d3c308b4567", "65ddcc7aef36f6413d0829b9", "6672e40ebb23210ae87d39eb"];
 
     private const int MaxSpecialSlots = 6;
     // pockets template, whether it is the Unheard Edition one, and the fixed _id of its SpecialSlot4, 5 and 6
