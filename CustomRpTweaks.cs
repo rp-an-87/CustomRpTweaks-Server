@@ -10,13 +10,15 @@ using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Utils;
 using SPTarkov.Server.Web.Models.Configs;
+using SPTarkov.Server.Web;
 using SPTarkov.Server.Web.Services;
+using System.Text.Json;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
 namespace CustomRpTweaks;
 
-public record ModMetadata : IModMetadata
+public record ModMetadata : IModMetadata, IModBlazorMetadata
 {
     public string ModGuid { get; init; } = "com.rpan87.customrptweaks";
     public string Name { get; init; } = "CustomRpTweaks";
@@ -29,6 +31,10 @@ public record ModMetadata : IModMetadata
     public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
     public string? Url { get; init; }
     public string License { get; init; } = "MIT";
+
+    public string? WWWRootUrl { get; init; }
+    public string? HomePage { get; init; } = "/custom-rp-tweaks";
+    public string? HomePageDescription { get; init; } = "Extracts, BTR, cases, pockets, trader restock and insurance tweaks.";
 }
 
 // Applies the tweaks from config.json once the database is loaded.
@@ -303,6 +309,35 @@ public class TweaksConfigProvider(ModHelper modHelper) : IConfigEditorConfigProv
             meta.Name,
             modHelper.GetJsonDataFromFile<TweaksConfig>(modPath, "config.json"),
             Path.Combine(modPath, "config.json"));
+    }
+}
+
+// Reads and writes config.json for the web page. The tweaks are applied once at server start, so a saved change takes effect on the next start.
+[Injectable(InjectionType.Singleton)]
+public class TweaksConfigStore(ModHelper modHelper)
+{
+    private readonly string _modPath = modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
+
+    public TweaksConfig Load()
+    {
+        var config = modHelper.GetJsonDataFromFile<TweaksConfig>(_modPath, "config.json");
+        config.Extracts ??= new ExtractsConfig();
+        config.Extracts.Chances ??= new ChancesConfig();
+        config.Extracts.Coop ??= new CoopConfig();
+        config.Btr ??= new BtrConfig();
+        config.Containers ??= new ContainersConfig();
+        config.Containers.AllowItems ??= new AllowItemsConfig();
+        config.Containers.AllowItems.Items ??= new AllowedGroups();
+        config.Pockets ??= new PocketsConfig();
+        config.TraderRestock ??= new TraderRestockConfig();
+        config.Insurance ??= new InsuranceConfig();
+        return config;
+    }
+
+    public void Save(TweaksConfig config)
+    {
+        var options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+        File.WriteAllText(Path.Combine(_modPath, "config.json"), JsonSerializer.Serialize(config, options));
     }
 }
 

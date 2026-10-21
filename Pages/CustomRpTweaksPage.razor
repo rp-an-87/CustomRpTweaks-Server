@@ -1,0 +1,130 @@
+@page "/custom-rp-tweaks"
+@attribute [Authorize(Policy = "Administrator")]
+@rendermode InteractiveServer
+@layout BaseMudBlazorLayout
+@inject TweaksConfigStore Store
+@inject ISnackbar Snackbar
+
+<PageTitle>CustomRpTweaks</PageTitle>
+
+<div class="spt-page">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="pa-6">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h3">CustomRpTweaks</MudText>
+            <MudAlert Severity="Severity.Info" Dense="true">The tweaks are applied when the server starts, so saved changes take effect on the next server start.</MudAlert>
+
+            @if (_config is not null)
+            {
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">Extract chances</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Set the appearance chance of every variable extract, per map" @bind-Value="_config.Extracts!.Chances!.Enabled" />
+                        <MudGrid>
+                            @foreach (var map in _config.Extracts!.Chances!.Locations.Keys.ToList())
+                            {
+                                var name = map;
+                                <MudItem xs="6" sm="4" md="3">
+                                    <MudNumericField T="double" Label="@name" Min="0" Max="100" Variant="Variant.Outlined"
+                                                     Value="_config.Extracts!.Chances!.Locations[name]"
+                                                     ValueChanged="@(value => _config.Extracts!.Chances!.Locations[name] = value)" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Make scav co-op extracts paid" @bind-Value="_config.Extracts!.Coop!.Enabled" />
+                        <MudNumericField T="int" Label="Co-op extract price (euros)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.Extracts!.Coop!.Amount" />
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">BTR</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Control the BTR per map" @bind-Value="_config.Btr!.Enabled" />
+                        @foreach (var map in _config.Btr!.Locations.Keys.ToList())
+                        {
+                            var location = _config.Btr!.Locations[map];
+                            <MudText Typo="Typo.subtitle1">@map</MudText>
+                            <MudGrid>
+                                <MudItem xs="6" md="2"><MudNumericField T="double" Label="Chance" Min="0" Max="100" Variant="Variant.Outlined" @bind-Value="location.Chance" /></MudItem>
+                                <MudItem xs="6" md="2"><MudNumericField T="float" Label="Stop min (s)" Min="0" Variant="Variant.Outlined" @bind-Value="location.StopDuration.Min" /></MudItem>
+                                <MudItem xs="6" md="2"><MudNumericField T="float" Label="Stop max (s)" Min="0" Variant="Variant.Outlined" @bind-Value="location.StopDuration.Max" /></MudItem>
+                                <MudItem xs="6" md="3"><MudNumericField T="float" Label="Spawn after min (s)" Min="0" Variant="Variant.Outlined" @bind-Value="location.SpawnTime.Min" /></MudItem>
+                                <MudItem xs="6" md="3"><MudNumericField T="float" Label="Spawn after max (s)" Min="0" Variant="Variant.Outlined" @bind-Value="location.SpawnTime.Max" /></MudItem>
+                            </MudGrid>
+                        }
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.h5">Item cases</MudText>
+                        <MudText Typo="Typo.body2">Which cases get extra allowed item groups, and which groups.</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="THICC Item Case" @bind-Value="_config.Containers!.AllowItems!.ThiccItemCase" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Item Case" @bind-Value="_config.Containers!.AllowItems!.ItemCase" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Allow secure containers" @bind-Value="_config.Containers!.AllowItems!.Items!.SecureContainers" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Allow ammo boxes" @bind-Value="_config.Containers!.AllowItems!.Items!.AmmoBoxes" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Allow special items (radio transmitters, marks, planting kits, ...)" @bind-Value="_config.Containers!.AllowItems!.Items!.Specials" />
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">Pockets</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Change the number of special slots" @bind-Value="_config.Pockets!.Enabled" />
+                        <MudGrid>
+                            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Special slots (3 = vanilla, max 6)" Min="3" Max="6" Variant="Variant.Outlined" @bind-Value="_config.Pockets!.SpecialSlots" /></MudItem>
+                            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Special slots, Unheard Edition" Min="3" Max="6" Variant="Variant.Outlined" @bind-Value="_config.Pockets!.SpecialSlotsUnheard" /></MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">Trader restock</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Cap every trader's restock interval" @bind-Value="_config.TraderRestock!.Enabled" />
+                        <MudGrid>
+                            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Minimum (seconds)" Min="0" Variant="Variant.Outlined" HelperText="@Minutes(_config.TraderRestock!.MinSeconds)" @bind-Value="_config.TraderRestock!.MinSeconds" /></MudItem>
+                            <MudItem xs="12" sm="6"><MudNumericField T="int" Label="Maximum (seconds)" Min="0" Variant="Variant.Outlined" HelperText="@Minutes(_config.TraderRestock!.MaxSeconds)" @bind-Value="_config.TraderRestock!.MaxSeconds" /></MudItem>
+                        </MudGrid>
+                        <MudTextField T="string" Label="Excluded traders (ids, separated by commas)" Variant="Variant.Outlined"
+                                      HelperText="By default Fence and Ref are left untouched."
+                                      Value="@string.Join(", ", _config.TraderRestock!.ExcludedTraders)"
+                                      ValueChanged="@(value => _config.TraderRestock!.ExcludedTraders = SplitIds(value))" />
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.h5">Insurance</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Make items uninsurable" @bind-Value="_config.Insurance!.Enabled" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Mechanical keys can't be insured" @bind-Value="_config.Insurance!.DisableKeys" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Keycards can't be insured" @bind-Value="_config.Insurance!.DisableKeycards" />
+                    </MudStack>
+                </MudPaper>
+
+                <MudStack Row>
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Save">Save</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="Reload">Reset</MudButton>
+                </MudStack>
+            }
+        </MudStack>
+    </MudContainer>
+</div>
+
+@code {
+    private TweaksConfig? _config;
+
+    protected override void OnInitialized() => Reload();
+
+    private void Reload() => _config = Store.Load();
+
+    private void Save()
+    {
+        Store.Save(_config!);
+        Snackbar.Add("Saved. It takes effect on the next server start.", Severity.Success);
+    }
+
+    private static string Minutes(int seconds) => $"{seconds / 60.0:0.#} min";
+
+    private static List<string> SplitIds(string? value) =>
+        (value ?? string.Empty).Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+}

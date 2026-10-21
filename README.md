@@ -19,6 +19,10 @@ Based on the tweak features of [LootValuePlus](https://github.com/rp-an-87/LootV
 
 A rebuild never overwrites an existing `config.json` in the mod folder.
 
+## Web page
+
+The mod has its own page in the server's web UI (card "CustomRpTweaks" under Mod pages, or `/custom-rp-tweaks`, admin only) with every option above grouped in sections. The tweaks are applied once at server start, so saved changes take effect on the next start. The same `config.json` is also listed in the generic config editor (`/configs`).
+
 ## Build
 
 Set `SPTPath` in `CustomRpTweaks.csproj.user` (your `SPT_Runtime` folder), then `dotnet build`. The DLL is copied to `user/mods/CustomRpTweaks`.
