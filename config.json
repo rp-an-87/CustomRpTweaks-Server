@@ -62,5 +62,10 @@
   "stacks": {
     "enabled": true,
     "items": { "5d235b4d86f7742e017bc88a": 5000 }
+  },
+  "bossGpCoins": {
+    "enabled": true,
+    "boss": { "chance": 25, "min": 10, "max": 25 },
+    "follower": { "chance": 25, "min": 1, "max": 5 }
   }
 }

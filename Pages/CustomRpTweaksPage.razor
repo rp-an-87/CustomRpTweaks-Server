@@ -115,6 +115,25 @@
                     </MudStack>
                 </MudPaper>
 
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.h5">Boss GP coins</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Bosses and followers can carry GP coins" @bind-Value="_config.BossGpCoins!.Enabled" />
+                        <MudText Typo="Typo.subtitle2">Bosses</MudText>
+                        <MudGrid>
+                            <MudItem xs="12" sm="4"><MudNumericField T="double" Label="Chance (%)" Min="0" Max="100" Variant="Variant.Outlined" @bind-Value="_config.BossGpCoins!.Boss.Chance" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Minimum coins" Min="1" Variant="Variant.Outlined" @bind-Value="_config.BossGpCoins!.Boss.Min" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Maximum coins" Min="1" Variant="Variant.Outlined" @bind-Value="_config.BossGpCoins!.Boss.Max" /></MudItem>
+                        </MudGrid>
+                        <MudText Typo="Typo.subtitle2">Followers</MudText>
+                        <MudGrid>
+                            <MudItem xs="12" sm="4"><MudNumericField T="double" Label="Chance (%)" Min="0" Max="100" Variant="Variant.Outlined" @bind-Value="_config.BossGpCoins!.Follower.Chance" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Minimum coins" Min="1" Variant="Variant.Outlined" @bind-Value="_config.BossGpCoins!.Follower.Min" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Maximum coins" Min="1" Variant="Variant.Outlined" @bind-Value="_config.BossGpCoins!.Follower.Max" /></MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudPaper>
+
                 <MudStack Row>
                     <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Save">Save</MudButton>
                     <MudButton Variant="Variant.Text" OnClick="Reload">Reset</MudButton>

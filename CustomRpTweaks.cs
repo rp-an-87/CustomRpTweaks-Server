@@ -334,6 +334,66 @@ public class TweaksConfigProvider(ModHelper modHelper) : IConfigEditorConfigProv
     }
 }
 
+// Gives bosses and followers a chance to carry a GP coin stack. This replaces the 'Bosses Have GP Coins' mod, whose coins
+// never spawn with Progressive Bot System (PBS drops all money from the pocket loot pool). It goes through the currency
+// draw instead, which both the vanilla loot generator and PBS use: the currency whitelist is GP coins only, the draw count
+// is 1 with the configured chance (else 0), and the stack size of GP coins is overridden for these bot types.
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 1)]
+public class BossGpCoinsApplier(BotTable botTable, BotConfig botConfig, ISptLogger<BossGpCoinsApplier> logger, ModHelper modHelper) : IOnLoad
+{
+    private const string GpCoinId = "5d235b4d86f7742e017bc88a";
+
+    public Task OnLoadAsync(CancellationToken cancellationToken)
+    {
+        var modPath = modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
+        var config = modHelper.GetJsonDataFromFile<TweaksConfig>(modPath, "config.json").BossGpCoins;
+        if (config is null || !config.Enabled)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!botConfig.CurrencyStackSize.TryGetValue("default", out var defaultStacks))
+        {
+            logger.Warning("CustomRpTweaks: no default currency stack sizes found, boss GP coins skipped.");
+            return Task.CompletedTask;
+        }
+
+        int bosses = 0, followers = 0;
+        foreach (var (key, botType) in botTable.Types)
+        {
+            var currency = botType?.BotGeneration?.Items?.Currency;
+            if (currency is null)
+            {
+                continue;
+            }
+
+            var role = key.ToLowerInvariant();
+            var isBoss = role.Contains("boss");
+            var target = isBoss ? config.Boss : role.Contains("follower") ? config.Follower : null;
+            if (target is null || target.Chance <= 0 || target.Max < 1)
+            {
+                continue;
+            }
+
+            var chance = Math.Clamp(target.Chance, 0, 100);
+            currency.Weights = new Dictionary<double, double> { [0] = 100 - chance, [1] = chance };
+            currency.Whitelist = new Dictionary<MongoId, double> { [new MongoId(GpCoinId)] = 1 };
+
+            // The role needs an entry for every currency (the generator looks up the item by template), so copy the default one
+            var stacks = defaultStacks.ToDictionary(pair => pair.Key, pair => new Dictionary<string, double>(pair.Value));
+            var min = Math.Max(1, Math.Min(target.Min, target.Max));
+            stacks[GpCoinId] = Enumerable.Range(min, target.Max - min + 1).ToDictionary(size => size.ToString(), _ => 1d);
+            botConfig.CurrencyStackSize[role] = stacks;
+
+            if (isBoss) bosses++; else followers++;
+        }
+
+        logger.Info($"CustomRpTweaks: {bosses} boss and {followers} follower bot types can carry GP coins " +
+                    $"(bosses {config.Boss.Chance}% for {config.Boss.Min}-{config.Boss.Max}, followers {config.Follower.Chance}% for {config.Follower.Min}-{config.Follower.Max}).");
+        return Task.CompletedTask;
+    }
+}
+
 // Reads and writes config.json for the web page. The tweaks are applied once at server start, so a saved change takes effect on the next start.
 [Injectable(InjectionType.Singleton)]
 public class TweaksConfigStore(ModHelper modHelper)
@@ -354,6 +414,9 @@ public class TweaksConfigStore(ModHelper modHelper)
         config.TraderRestock ??= new TraderRestockConfig();
         config.Insurance ??= new InsuranceConfig();
         config.Stacks ??= new StacksConfig();
+        config.BossGpCoins ??= new BossGpCoinsConfig();
+        config.BossGpCoins.Boss ??= new GpCoinsTarget { Chance = 25, Min = 10, Max = 25 };
+        config.BossGpCoins.Follower ??= new GpCoinsTarget { Chance = 25, Min = 1, Max = 5 };
         return config;
     }
 
@@ -373,6 +436,23 @@ public class TweaksConfig
     [JsonPropertyName("traderRestock")] public TraderRestockConfig? TraderRestock { get; set; }
     [JsonPropertyName("insurance")] public InsuranceConfig? Insurance { get; set; }
     [JsonPropertyName("stacks")] public StacksConfig? Stacks { get; set; }
+    [JsonPropertyName("bossGpCoins")] public BossGpCoinsConfig? BossGpCoins { get; set; }
+}
+
+public class BossGpCoinsConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("boss")] public GpCoinsTarget Boss { get; set; } = new() { Chance = 25, Min = 10, Max = 25 };
+    [JsonPropertyName("follower")] public GpCoinsTarget Follower { get; set; } = new() { Chance = 25, Min = 1, Max = 5 };
+}
+
+public class GpCoinsTarget
+{
+    // percent chance that one bot of this kind carries a GP coin stack (0 = never)
+    [JsonPropertyName("chance")] public double Chance { get; set; }
+    // size of that stack, each size from min to max equally likely
+    [JsonPropertyName("min")] public int Min { get; set; }
+    [JsonPropertyName("max")] public int Max { get; set; }
 }
 
 public class StacksConfig
