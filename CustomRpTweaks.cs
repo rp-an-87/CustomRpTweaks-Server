@@ -68,6 +68,7 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         ApplyPockets(config.Pockets);
         ApplyTraderRestock(config.TraderRestock);
         ApplyInsurance(config.Insurance);
+        ApplyStacks(config.Stacks);
         return Task.CompletedTask;
     }
 
@@ -271,6 +272,27 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         logger.Info($"[CustomRpTweaks] {disabled} key items can no longer be insured");
     }
 
+    // The client takes item templates from the server, so raising StackMaxSize here is enough.
+    private void ApplyStacks(StacksConfig? cfg)
+    {
+        if (cfg is not { Enabled: true })
+        {
+            return;
+        }
+
+        foreach (var (itemId, size) in cfg.Items)
+        {
+            if (!templateTable.Items.TryGetValue(itemId, out var item) || item.Properties is null)
+            {
+                logger.Warning($"[CustomRpTweaks] Stack size: item {itemId} not found, skipped");
+                continue;
+            }
+
+            logger.Info($"[CustomRpTweaks] {itemId} stack size {item.Properties.StackMaxSize} -> {size}");
+            item.Properties.StackMaxSize = size;
+        }
+    }
+
     private void AddToFilter(string itemId, string label, List<string> nodes)
     {
         var items = templateTable.Items;
@@ -331,6 +353,7 @@ public class TweaksConfigStore(ModHelper modHelper)
         config.Pockets ??= new PocketsConfig();
         config.TraderRestock ??= new TraderRestockConfig();
         config.Insurance ??= new InsuranceConfig();
+        config.Stacks ??= new StacksConfig();
         return config;
     }
 
@@ -349,6 +372,14 @@ public class TweaksConfig
     [JsonPropertyName("pockets")] public PocketsConfig? Pockets { get; set; }
     [JsonPropertyName("traderRestock")] public TraderRestockConfig? TraderRestock { get; set; }
     [JsonPropertyName("insurance")] public InsuranceConfig? Insurance { get; set; }
+    [JsonPropertyName("stacks")] public StacksConfig? Stacks { get; set; }
+}
+
+public class StacksConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // item template id -> max stack size (5d235b4d86f7742e017bc88a is the GP coin, 100 in vanilla)
+    [JsonPropertyName("items")] public Dictionary<string, int> Items { get; set; } = new() { ["5d235b4d86f7742e017bc88a"] = 5000 };
 }
 
 public class InsuranceConfig

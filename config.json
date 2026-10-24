@@ -58,5 +58,9 @@
     "enabled": true,
     "disableKeys": true,
     "disableKeycards": false
+  },
+  "stacks": {
+    "enabled": true,
+    "items": { "5d235b4d86f7742e017bc88a": 5000 }
   }
 }

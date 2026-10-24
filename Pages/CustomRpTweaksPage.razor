@@ -101,6 +101,20 @@
                     </MudStack>
                 </MudPaper>
 
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.h5">Stack sizes</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Change max stack sizes" @bind-Value="_config.Stacks!.Enabled" />
+                        @foreach (var id in _config.Stacks!.Items.Keys.ToList())
+                        {
+                            <MudNumericField T="int" Label="@id" Min="1" Variant="Variant.Outlined"
+                                             HelperText="@(id == "5d235b4d86f7742e017bc88a" ? "GP coin (100 in vanilla)" : null)"
+                                             Value="@_config.Stacks!.Items[id]"
+                                             ValueChanged="@(value => _config.Stacks!.Items[id] = value)" />
+                        }
+                    </MudStack>
+                </MudPaper>
+
                 <MudStack Row>
                     <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Save">Save</MudButton>
                     <MudButton Variant="Variant.Text" OnClick="Reload">Reset</MudButton>
