@@ -19,6 +19,14 @@
     <PackageReference Include="SPTarkov.Server.Web" Version="4.1.2" ExcludeAssets="runtime"/>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The server's own copy (HarmonyX): the non-virtual trade methods are patched at runtime. Not copied to the mod folder. -->
+    <Reference Include="0Harmony" Condition="'$(SPTPath)' != ''">
+      <HintPath>$(SPTPath)\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
   <Target Name="CopyToSPT" AfterTargets="AfterBuild" Condition="'$(SPTPath)' != ''">
     <!-- Defined here, not at the top: SPTPath comes from CustomRpTweaks.csproj.user, which MSBuild loads after the project body -->
     <PropertyGroup>

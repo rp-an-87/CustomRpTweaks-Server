@@ -18,8 +18,21 @@ Based on the tweak features of [LootValuePlus](https://github.com/rp-an-87/LootV
 | `insurance.enabled` / `.disableKeys` / `.disableKeycards` | Makes mechanical keys (and optionally keycards) uninsurable, which also drops them from "insure all" |
 | `stacks.enabled` / `.items` | Sets the max stack size per item template id. Default entry: GP coin `5d235b4d86f7742e017bc88a` = 5000 (vanilla 100) |
 | `bossGpCoins.enabled` / `.boss` / `.follower` | Bosses and followers carry a GP coin stack with `chance` percent (default 25%), `min` to `max` coins (bosses 10-25, followers 1-5). Replaces the Bosses Have GP Coins mod, which doesn't work with Progressive Bot System, so disable that mod. Applied at server start |
+| `traderOverstock.enabled` / `.maxRounds` / `.minIncreasePercent` / `.maxIncreasePercent` / `.clientIndicator` / `.excludedTraders` | Trader offers you can keep buying: see "Trader overstock" below. `maxRounds` is the number of extra rounds per offer between restocks (0 = no cap), the two percents are the range of each round's random price increase, `clientIndicator` lets the client plugin mark raised prices. Fence is never touched |
 
 A rebuild never overwrites an existing `config.json` in the mod folder.
+
+## Trader overstock
+
+Most trader offers have unlimited stock and a personal purchase limit per restock ("Limit 5/5"). With this feature, using up that limit (or selling out an offer that has finite stock) starts a new round: your counter on the offer goes back to 0 and the price rises by a random percent between `minIncreasePercent` and `maxIncreasePercent`, on top of the earlier rounds. An offer can do that `maxRounds` times; when the trader really restocks, prices and rounds go back to normal.
+
+- It is per profile. The raised prices are applied to what each profile is sent (the trader's offers and the same offers in the flea market search results), never to the shared trader data, and selling prices are not affected. Offers whose limit was already used up when the offers load (for example after a server restart) start their next round then.
+- Prices: roubles are whole numbers, dollars and euros keep cents, barter items are rounded up (at least 1).
+- The rounds are kept in memory only. A server restart forgets them, so prices go back to normal while the limit counters (kept in the profile) stay.
+- Finite stock is the same for every profile, so the few offers that have it are refilled for everyone.
+- The server charges what the client sends, so the price you see is the price you pay.
+- The methods involved (`TradeHelper.BuyItem`, `TraderAssortHelper.GetAssort` and `ResetExpiredTrader`, the flea `RagfairController.GetOffers`) aren't virtual, so they are patched with Harmony (the server's own `0Harmony.dll`, referenced from `SPTPath` when building).
+- The route `/customrptweaks/overstock/prices` lists the raised offers of the calling profile for the [client plugin](https://github.com/rp-an-87/CustomRpTweaks-Client), which colours them. It answers "disabled" when the feature or `clientIndicator` is off.
 
 ## Web page
 

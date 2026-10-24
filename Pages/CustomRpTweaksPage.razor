@@ -134,6 +134,23 @@
                     </MudStack>
                 </MudPaper>
 
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">Trader overstock</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Using up your limit on a trader offer (or selling it out) brings it back at a higher price" @bind-Value="_config.TraderOverstock!.Enabled" />
+                        <MudGrid>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Extra rounds per restock (0 = no cap)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.TraderOverstock!.MaxRounds" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="double" Label="Minimum price increase (%)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.TraderOverstock!.MinIncreasePercent" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="double" Label="Maximum price increase (%)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.TraderOverstock!.MaxIncreasePercent" /></MudItem>
+                        </MudGrid>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Tell the client plugin which prices are raised (price indicator)" @bind-Value="_config.TraderOverstock!.ClientIndicator" />
+                        <MudTextField T="string" Label="Excluded traders (ids, separated by commas)" Variant="Variant.Outlined"
+                                      HelperText="Fence is always left alone."
+                                      Value="@string.Join(", ", _config.TraderOverstock!.ExcludedTraders)"
+                                      ValueChanged="@(value => _config.TraderOverstock!.ExcludedTraders = SplitIds(value))" />
+                    </MudStack>
+                </MudPaper>
+
                 <MudStack Row>
                     <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Save">Save</MudButton>
                     <MudButton Variant="Variant.Text" OnClick="Reload">Reset</MudButton>

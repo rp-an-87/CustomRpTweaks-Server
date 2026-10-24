@@ -414,6 +414,7 @@ public class TweaksConfigStore(ModHelper modHelper)
         config.TraderRestock ??= new TraderRestockConfig();
         config.Insurance ??= new InsuranceConfig();
         config.Stacks ??= new StacksConfig();
+        config.TraderOverstock ??= new TraderOverstockConfig();
         config.BossGpCoins ??= new BossGpCoinsConfig();
         config.BossGpCoins.Boss ??= new GpCoinsTarget { Chance = 25, Min = 10, Max = 25 };
         config.BossGpCoins.Follower ??= new GpCoinsTarget { Chance = 25, Min = 1, Max = 5 };
@@ -437,6 +438,7 @@ public class TweaksConfig
     [JsonPropertyName("insurance")] public InsuranceConfig? Insurance { get; set; }
     [JsonPropertyName("stacks")] public StacksConfig? Stacks { get; set; }
     [JsonPropertyName("bossGpCoins")] public BossGpCoinsConfig? BossGpCoins { get; set; }
+    [JsonPropertyName("traderOverstock")] public TraderOverstockConfig? TraderOverstock { get; set; }
 }
 
 public class BossGpCoinsConfig
