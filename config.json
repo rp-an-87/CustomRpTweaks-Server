@@ -78,5 +78,8 @@
   },
   "waterFilter": {
     "enabled": true
+  },
+  "testKit": {
+    "enabled": false
   }
 }
