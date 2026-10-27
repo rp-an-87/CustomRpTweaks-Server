@@ -19,6 +19,7 @@ Based on the tweak features of [LootValuePlus](https://github.com/rp-an-87/LootV
 | `stacks.enabled` / `.items` | Sets the max stack size per item template id. Default entry: GP coin `5d235b4d86f7742e017bc88a` = 5000 (vanilla 100) |
 | `bossGpCoins.enabled` / `.boss` / `.follower` | Bosses and followers carry a GP coin stack with `chance` percent (default 25%), `min` to `max` coins (bosses 10-25, followers 1-5). Replaces the Bosses Have GP Coins mod, which doesn't work with Progressive Bot System, so disable that mod. Applied at server start |
 | `traderOverstock.enabled` / `.maxRounds` / `.minIncreasePercent` / `.maxIncreasePercent` / `.clientIndicator` / `.excludedTraders` | Trader offers you can keep buying: see "Trader overstock" below. `maxRounds` is the number of extra rounds per offer between restocks (0 = no cap), the two percents are the range of each round's random price increase, `clientIndicator` lets the client plugin mark raised prices. Fence is never touched |
+| `waterFilter.enabled` | Makes the water filter drain match the recipe SVM sets (`WaterFilterRate` resource over `WaterFilterTime` minutes). The server drains the filter at a fixed rate per second of crafting time, so a changed time or rate had little effect. With this on, the drain per craft follows the recipe. Work in progress: the drain isn't exact yet |
 
 A rebuild never overwrites an existing `config.json` in the mod folder.
 
