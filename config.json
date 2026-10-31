@@ -78,9 +78,5 @@
   },
   "waterFilter": {
     "enabled": true
-  },
-  "testKit": {
-    "enabled": false,
-    "profiles": []
   }
 }
