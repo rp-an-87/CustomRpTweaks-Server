@@ -74,7 +74,8 @@
     "minIncreasePercent": 10,
     "maxIncreasePercent": 20,
     "clientIndicator": true,
-    "excludedTraders": []
+    "excludedTraders": [],
+    "verboseLogging": false
   },
   "waterFilter": {
     "enabled": true

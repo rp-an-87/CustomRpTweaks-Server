@@ -193,7 +193,7 @@ public class TraderOverstock(TraderHelper traderHelper, ProfileHelper profileHel
             purchase.PurchaseCount = 0;
         }
 
-        logger.Info($"[CustomRpTweaks] Overstock: profile {sessionId} trader {traderId} item {item.Template} {reason}, round {round.Count}, +{increase:0.#}% (total x{round.Multiplier:0.00})");
+        if (_cfg.VerboseLogging) logger.Info($"[CustomRpTweaks] Overstock: profile {sessionId} trader {traderId} item {item.Template} {reason}, round {round.Count}, +{increase:0.#}% (total x{round.Multiplier:0.00})");
         return true;
     }
 
@@ -347,7 +347,7 @@ public class TraderOverstock(TraderHelper traderHelper, ProfileHelper profileHel
 
             if (cleared.Count > 0)
             {
-                logger.Info($"[CustomRpTweaks] Overstock: trader {trader.Base.Id} restocked, prices back to normal");
+                if (_cfg.VerboseLogging) logger.Info($"[CustomRpTweaks] Overstock: trader {trader.Base.Id} restocked, prices back to normal");
             }
         }
     }
@@ -418,4 +418,6 @@ public class TraderOverstockConfig
     [JsonPropertyName("clientIndicator")] public bool ClientIndicator { get; set; } = true;
     // trader ids left alone (Fence is always left alone)
     [JsonPropertyName("excludedTraders")] public List<string> ExcludedTraders { get; set; } = [];
+    // log every round and restock (one line per offer bought again)
+    [JsonPropertyName("verboseLogging")] public bool VerboseLogging { get; set; }
 }
