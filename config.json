@@ -79,5 +79,8 @@
   },
   "waterFilter": {
     "enabled": true
+  },
+  "wholeResources": {
+    "enabled": true
   }
 }
