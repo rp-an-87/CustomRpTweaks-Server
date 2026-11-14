@@ -82,5 +82,12 @@
   },
   "wholeResources": {
     "enabled": true
+  },
+  "skillCap": {
+    "enabled": true,
+    "levelsAbovePmcLevel": 0
+  },
+  "raidSkills": {
+    "enabled": true
   }
 }
