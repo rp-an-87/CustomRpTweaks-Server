@@ -24,6 +24,11 @@ Based on the tweak features of [LootValuePlus](https://github.com/rp-an-87/LootV
 
 A rebuild never overwrites an existing `config.json` in the mod folder.
 
+## Skill cap and raid skills
+
+- `skillCap`: skill XP the server grants itself (hideout crafts, hideout management, repairs, quest and prestige rewards, other mods) is capped to PMC level + `levelsAbovePmcLevel`, like the client plugin's throttle does for in-raid XP. Skills already above the limit are never lowered. Keep `levelsAbovePmcLevel` equal to the client setting "Allowed levels above PMC level".
+- `raidSkills`: at the end of a raid SPT replaces the server's PMC skills with the client's, so skill XP the server granted during the raid (crafts collected by CraftQueue, hideout management from the generator) is lost. This remembers the skills at raid start and puts back what the server added, after every multiplier and with the cap applied.
+
 ## Trader overstock
 
 Most trader offers have unlimited stock and a personal purchase limit per restock ("Limit 5/5"). With this feature, using up that limit (or selling out an offer that has finite stock) starts a new round: your counter on the offer goes back to 0 and the price rises by a random percent between `minIncreasePercent` and `maxIncreasePercent`, on top of the earlier rounds. An offer can do that `maxRounds` times; when the trader really restocks, prices and rounds go back to normal.
