@@ -14,8 +14,8 @@ namespace CustomRpTweaks;
 //  - scopeZero: sights with a high enough zoom get more zeroing distances (the game works out each one from the ammo's ballistics, so any
 //    distance is valid). Only distances above a scope's current longest are added; the existing ones are kept as they are.
 //  - bipod: the prone limits on how far the aim can turn while a bipod is deployed (set per bipod, in its item data) are widened, never
-//    narrowed, and the global thresholds that decide whether a bipod can be deployed (surface angle, how far the aim may be off the
-//    mounting limits) are loosened. A value left out of the config is not touched.
+//    narrowed, and the prone ground-angle check is loosened. The other global mounting thresholds also affect mounting that is not prone,
+//    so they are only changed when the config gives a value; a value left out of the config is not touched.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 5)]
 public class ShootingTweaksApplier(TemplateTable templateTable, GlobalTable globalTable, ISptLogger<ShootingTweaksApplier> logger, ModHelper modHelper) : IOnLoad
 {
@@ -150,9 +150,10 @@ public class BipodConfig
     [JsonPropertyName("yawLimit")] public double? YawLimit { get; set; } = 30;
     // a prone bipod needs the ground within this dot product of level (vanilla 0.939, about 20 degrees; 0.82 is about 35)
     [JsonPropertyName("maxProneMountAngleDotDelta")] public double? MaxProneMountAngleDotDelta { get; set; } = 0.82;
-    // deploying on an object: the aim may be this many degrees past the mounting limits (vanilla 10 and 25)
-    [JsonPropertyName("maxPitchLimitExcess")] public double? MaxPitchLimitExcess { get; set; } = 20;
-    [JsonPropertyName("maxYawLimitExcess")] public double? MaxYawLimitExcess { get; set; } = 40;
-    // a bipod on an object: the aim limit up and down, in degrees (vanilla 20)
-    [JsonPropertyName("pitchLimitHorizontalBipod")] public double? PitchLimitHorizontalBipod { get; set; } = 30;
+    // These three also change mounting that is not prone (any mount, side and wall mounts, a bipod on an object), so they are not touched
+    // unless a value is given: how many degrees past the mounting limits the aim may be when you mount (vanilla 10 pitch, 25 yaw), and the
+    // aim limit up and down for a bipod on an object (vanilla 20)
+    [JsonPropertyName("maxPitchLimitExcess")] public double? MaxPitchLimitExcess { get; set; }
+    [JsonPropertyName("maxYawLimitExcess")] public double? MaxYawLimitExcess { get; set; }
+    [JsonPropertyName("pitchLimitHorizontalBipod")] public double? PitchLimitHorizontalBipod { get; set; }
 }
