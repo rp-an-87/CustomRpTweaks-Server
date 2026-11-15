@@ -89,5 +89,16 @@
   },
   "raidSkills": {
     "enabled": true
+  },
+  "collectorLoot": {
+    "enabled": true,
+    "multiplier": 1.0,
+    "referenceCount": 5,
+    "minReferenceSpawnpoints": 3,
+    "items": [
+      "6937edb912d456a817083e82", "6937ecf8628ee476240c07cb", "6937f02dfd6488bb27024839", "69398e94ca94fd2877039504",
+      "69f9d60b5de6674f08060f2a", "69f9d547b98cc4120608692a", "69f9d319c906cd16da03b374", "6a3532423ec9d7082a05d430",
+      "6a4ce086b5644e9f0a08d08a", "6a35322b81d315afe1018ef3", "6a3557f841667bc4bb00fea4"
+    ]
   }
 }
