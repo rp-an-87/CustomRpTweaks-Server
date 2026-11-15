@@ -119,5 +119,11 @@
     "pitchMax": 15,
     "yawLimit": 30,
     "maxProneMountAngleDotDelta": 0.82
+  },
+  "raidTime": {
+    "enabled": true,
+    "minutes": {
+      "lighthouse": 50
+    }
   }
 }

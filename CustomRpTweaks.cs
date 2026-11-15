@@ -69,6 +69,7 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         ApplyTraderRestock(config.TraderRestock);
         ApplyInsurance(config.Insurance);
         ApplyStacks(config.Stacks);
+        ApplyRaidTime(config.RaidTime);
         return Task.CompletedTask;
     }
 
@@ -273,6 +274,38 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
     }
 
     // The client takes item templates from the server, so raising StackMaxSize here is enough.
+    // Raid length per map, in minutes. This runs before Acid's Bot Placement System reads the length (it does so very late), so the waves
+    // and the time its scav spawns stop are worked out from the new one.
+    private void ApplyRaidTime(RaidTimeConfig? cfg)
+    {
+        if (cfg is not { Enabled: true })
+        {
+            return;
+        }
+
+        var locations = AllLocations();
+        foreach (var (name, minutes) in cfg.Minutes)
+        {
+            if (!locations.TryGetValue(name, out var location) || location.Base is null || minutes <= 0)
+            {
+                logger.Warning($"[CustomRpTweaks] Raid time: map '{name}' not found or minutes not above 0, skipped");
+                continue;
+            }
+
+            logger.Info($"[CustomRpTweaks] {name} raid time {location.Base.EscapeTimeLimit} -> {minutes} minutes");
+            location.Base.EscapeTimeLimit = minutes;
+            if (location.Base.EscapeTimeLimitPVE is not null)
+            {
+                location.Base.EscapeTimeLimitPVE = minutes;
+            }
+
+            if (location.Base.EscapeTimeLimitCoop is not null)
+            {
+                location.Base.EscapeTimeLimitCoop = minutes;
+            }
+        }
+    }
+
     private void ApplyStacks(StacksConfig? cfg)
     {
         if (cfg is not { Enabled: true })
@@ -422,6 +455,7 @@ public class TweaksConfigStore(ModHelper modHelper)
         config.CollectorLoot ??= new CollectorLootConfig();
         config.ScopeZero ??= new ScopeZeroConfig();
         config.Bipod ??= new BipodConfig();
+        config.RaidTime ??= new RaidTimeConfig();
         config.BossGpCoins ??= new BossGpCoinsConfig();
         config.BossGpCoins.Boss ??= new GpCoinsTarget { Chance = 25, Min = 10, Max = 25 };
         config.BossGpCoins.Follower ??= new GpCoinsTarget { Chance = 25, Min = 1, Max = 5 };
@@ -453,6 +487,14 @@ public class TweaksConfig
     [JsonPropertyName("collectorLoot")] public CollectorLootConfig? CollectorLoot { get; set; }
     [JsonPropertyName("scopeZero")] public ScopeZeroConfig? ScopeZero { get; set; }
     [JsonPropertyName("bipod")] public BipodConfig? Bipod { get; set; }
+    [JsonPropertyName("raidTime")] public RaidTimeConfig? RaidTime { get; set; }
+}
+
+public class RaidTimeConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // location database name (as used in the extracts section) -> raid length in minutes
+    [JsonPropertyName("minutes")] public Dictionary<string, int> Minutes { get; set; } = new() { ["lighthouse"] = 50 };
 }
 
 public class BossGpCoinsConfig
