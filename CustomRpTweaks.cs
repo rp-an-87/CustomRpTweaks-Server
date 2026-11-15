@@ -420,6 +420,8 @@ public class TweaksConfigStore(ModHelper modHelper)
         config.SkillCap ??= new SkillCapConfig();
         config.RaidSkills ??= new RaidSkillsConfig();
         config.CollectorLoot ??= new CollectorLootConfig();
+        config.ScopeZero ??= new ScopeZeroConfig();
+        config.Bipod ??= new BipodConfig();
         config.BossGpCoins ??= new BossGpCoinsConfig();
         config.BossGpCoins.Boss ??= new GpCoinsTarget { Chance = 25, Min = 10, Max = 25 };
         config.BossGpCoins.Follower ??= new GpCoinsTarget { Chance = 25, Min = 1, Max = 5 };
@@ -449,6 +451,8 @@ public class TweaksConfig
     [JsonPropertyName("skillCap")] public SkillCapConfig? SkillCap { get; set; }
     [JsonPropertyName("raidSkills")] public RaidSkillsConfig? RaidSkills { get; set; }
     [JsonPropertyName("collectorLoot")] public CollectorLootConfig? CollectorLoot { get; set; }
+    [JsonPropertyName("scopeZero")] public ScopeZeroConfig? ScopeZero { get; set; }
+    [JsonPropertyName("bipod")] public BipodConfig? Bipod { get; set; }
 }
 
 public class BossGpCoinsConfig

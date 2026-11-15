@@ -106,5 +106,21 @@
       "roles": ["assault", "cursedassault"],
       "excludeItems": ["6937edb912d456a817083e82"]
     }
+  },
+  "scopeZero": {
+    "enabled": true,
+    "minZoom": 6,
+    "maxDistance": 800,
+    "step": 50
+  },
+  "bipod": {
+    "enabled": true,
+    "pitchMin": -10,
+    "pitchMax": 15,
+    "yawLimit": 30,
+    "maxProneMountAngleDotDelta": 0.82,
+    "maxPitchLimitExcess": 20,
+    "maxYawLimitExcess": 40,
+    "pitchLimitHorizontalBipod": 30
   }
 }
