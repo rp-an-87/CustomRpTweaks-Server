@@ -151,6 +151,42 @@
                     </MudStack>
                 </MudPaper>
 
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">Hideout and skills</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Water filter: one craft uses the recipe's filter usage, reduced once by Hideout Management" @bind-Value="_config.WaterFilter!.Enabled" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Round uses left on bot-generated medical items and food to whole numbers" @bind-Value="_config.WholeResources!.Enabled" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Cap skill XP the server grants (hideout, repairs, quests) to PMC level + the levels below" @bind-Value="_config.SkillCap!.Enabled" />
+                        <MudNumericField T="int" Label="Levels above PMC level" Min="0" Variant="Variant.Outlined" HelperText="Keep in step with the client setting 'Allowed levels above PMC level'." @bind-Value="_config.SkillCap!.LevelsAbovePmcLevel" />
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Keep skill XP the server grants during a raid (CraftQueue, generator) through the post-raid merge" @bind-Value="_config.RaidSkills!.Enabled" />
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="spt-panel pa-5">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h5">Collector loot</MudText>
+                        <MudText Typo="Typo.body2">Adds the listed items to loose loot with the odds of vanilla Collector items of similar value (per map, the nearest by handbook price).</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Add the items to loose loot" @bind-Value="_config.CollectorLoot!.Enabled" />
+                        <MudGrid>
+                            <MudItem xs="12" sm="4"><MudNumericField T="double" Label="Odds multiplier (1 = same as the reference items)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.CollectorLoot!.Multiplier" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Reference items averaged" Min="1" Variant="Variant.Outlined" @bind-Value="_config.CollectorLoot!.ReferenceCount" /></MudItem>
+                            <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Min loose spawnpoints for a reference" Min="1" Variant="Variant.Outlined" @bind-Value="_config.CollectorLoot!.MinReferenceSpawnpoints" /></MudItem>
+                        </MudGrid>
+                        <MudTextField T="string" Label="Items (ids, separated by commas)" Variant="Variant.Outlined" Lines="3"
+                                      Value="@string.Join(", ", _config.CollectorLoot!.Items)"
+                                      ValueChanged="@(value => _config.CollectorLoot!.Items = SplitIds(value))" />
+                        <MudText Typo="Typo.subtitle2">Scavs</MudText>
+                        <MudSwitch T="bool" Color="Color.Warning" Label="Also add the items to scav pockets and backpacks" @bind-Value="_config.CollectorLoot!.Bots.Enabled" />
+                        <MudNumericField T="double" Label="Scav odds multiplier" Min="0" Variant="Variant.Outlined" @bind-Value="_config.CollectorLoot!.Bots.Multiplier" />
+                        <MudTextField T="string" Label="Bot roles (separated by commas)" Variant="Variant.Outlined"
+                                      Value="@string.Join(", ", _config.CollectorLoot!.Bots.Roles)"
+                                      ValueChanged="@(value => _config.CollectorLoot!.Bots.Roles = SplitIds(value))" />
+                        <MudTextField T="string" Label="Items scavs never get (ids, separated by commas)" Variant="Variant.Outlined"
+                                      Value="@string.Join(", ", _config.CollectorLoot!.Bots.ExcludeItems)"
+                                      ValueChanged="@(value => _config.CollectorLoot!.Bots.ExcludeItems = SplitIds(value))" />
+                    </MudStack>
+                </MudPaper>
+
                 <MudStack Row>
                     <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Save">Save</MudButton>
                     <MudButton Variant="Variant.Text" OnClick="Reload">Reset</MudButton>
