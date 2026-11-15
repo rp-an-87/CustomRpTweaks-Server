@@ -20,7 +20,7 @@ namespace CustomRpTweaks;
 // reference spawns, the new item can spawn too, with the average reference share of that spawnpoint's pool.
 // It is registered as a lazy-load transformer next to Lots of Loot's, so both apply when the map's loose loot is built.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 4)]
-public class CollectorLootApplier(LocationTable locationTable, TemplateTable templateTable, ISptLogger<CollectorLootApplier> logger, ModHelper modHelper) : IOnLoad
+public class CollectorLootApplier(LocationTable locationTable, TemplateTable templateTable, BotTable botTable, ISptLogger<CollectorLootApplier> logger, ModHelper modHelper) : IOnLoad
 {
     // vanilla Collector quest items (4.1.6 task list, before the backports)
     private static readonly string[] VanillaCollector =
@@ -70,8 +70,80 @@ public class CollectorLootApplier(LocationTable locationTable, TemplateTable tem
             location?.LooseLoot?.AddTransformer(data => Apply(name, data, cfg));
         }
 
+        if (cfg.Bots.Enabled)
+        {
+            ApplyBots(cfg);
+        }
+
         logger.Info($"[CustomRpTweaks] Collector loot: {cfg.Items.Count} items added to loose loot, odds like the {cfg.ReferenceCount} vanilla Collector items nearest in value (x{cfg.Multiplier})");
         return Task.CompletedTask;
+    }
+
+    // Adds the items to the Pockets and Backpack loot pools of the configured bot roles (scavs). The weight is chosen so the item's
+    // share of the pool equals the average share of the vanilla Collector items nearest in price that are already in that pool.
+    // Progressive Bot System builds its loot cache from these same pools on the first bot of each role and tier, so it picks this up.
+    private void ApplyBots(CollectorLootConfig cfg)
+    {
+        var skip = cfg.Bots.ExcludeItems.ToHashSet();
+        var items = cfg.Items.Where(i => !skip.Contains(i)).ToList();
+        var vanilla = VanillaCollector.ToHashSet();
+        foreach (var role in cfg.Bots.Roles)
+        {
+            var pools = botTable.Types.GetValueOrDefault(role)?.BotInventory?.Items;
+            if (pools is null)
+            {
+                logger.Warning($"[CustomRpTweaks] Collector loot: bot role '{role}' not found, skipped");
+                continue;
+            }
+
+            var added = AddToPool(pools.Pockets, items, vanilla, cfg) + AddToPool(pools.Backpack, items, vanilla, cfg);
+            logger.Info($"[CustomRpTweaks] Collector loot {role}: {added} pool entries added (pockets, backpack)");
+        }
+    }
+
+    private int AddToPool(Dictionary<MongoId, double>? pool, List<string> items, HashSet<string> vanilla, CollectorLootConfig cfg)
+    {
+        if (pool is null)
+        {
+            return 0;
+        }
+
+        var total = pool.Values.Sum();
+        var candidates = pool
+            .Where(kv => kv.Value > 0 && vanilla.Contains(kv.Key.ToString()))
+            .Select(kv => (Tpl: kv.Key.ToString(), Price: PriceOf(kv.Key.ToString()), Weight: kv.Value))
+            .Where(c => c.Price is not null)
+            .ToList();
+        if (total <= 0 || candidates.Count == 0)
+        {
+            return 0;
+        }
+
+        var weights = candidates.ToDictionary(c => c.Tpl, c => c.Weight);
+        var additions = new Dictionary<MongoId, double>();
+        foreach (var item in items)
+        {
+            var id = new MongoId(item);
+            var price = PriceOf(item);
+            if (pool.ContainsKey(id) || price is null)
+            {
+                continue; // already in this pool (another mod added it) or no price
+            }
+
+            var refs = PickReferences(price.Value, candidates.Select(c => (c.Tpl, c.Price!.Value)), cfg.ReferenceCount);
+            var share = Math.Min(refs.Sum(r => weights[r] / total) / refs.Count * cfg.Bots.Multiplier, 0.95);
+            if (share > 0)
+            {
+                additions[id] = total * share / (1 - share);
+            }
+        }
+
+        foreach (var (id, weight) in additions)
+        {
+            pool[id] = weight;
+        }
+
+        return additions.Count;
     }
 
     private double? PriceOf(string tpl)
@@ -229,4 +301,16 @@ public class CollectorLootConfig
     // a vanilla item only counts as a reference on a map where it has at least this many loose spawnpoints
     [JsonPropertyName("minReferenceSpawnpoints")] public int MinReferenceSpawnpoints { get; set; } = 3;
     [JsonPropertyName("items")] public List<string> Items { get; set; } = [];
+    [JsonPropertyName("bots")] public CollectorLootBotsConfig Bots { get; set; } = new();
+}
+
+public class CollectorLootBotsConfig
+{
+    // also adds the items to the pockets and backpack loot pools of these bot roles
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // scales the odds against the reference items (1 = same pool share as them)
+    [JsonPropertyName("multiplier")] public double Multiplier { get; set; } = 0.5;
+    [JsonPropertyName("roles")] public List<string> Roles { get; set; } = ["assault", "cursedassault"];
+    // items from `items` that bots never get
+    [JsonPropertyName("excludeItems")] public List<string> ExcludeItems { get; set; } = [];
 }
