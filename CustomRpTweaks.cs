@@ -39,7 +39,7 @@ public record ModMetadata : IModMetadata, IModBlazorMetadata
 
 // Applies the tweaks from config.json once the database is loaded.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload + 1)]
-public class TweaksApplier(LocationTable locationTable, TemplateTable templateTable, TraderConfig traderConfig, ISptLogger<TweaksApplier> logger, ModHelper modHelper) : IOnLoad
+public class TweaksApplier(LocationTable locationTable, TemplateTable templateTable, GlobalTable globalTable, TraderConfig traderConfig, ISptLogger<TweaksApplier> logger, ModHelper modHelper) : IOnLoad
 {
     private const string EuroId = "569668774bdc2da2298b4568";
     private const string ItemCaseId = "59fb042886f7746c5005a7b2";
