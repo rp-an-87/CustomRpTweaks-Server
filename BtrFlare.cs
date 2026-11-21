@@ -5,6 +5,7 @@ using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Spt.Mod;
+using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services.Modding.Custom;
 using System.Reflection;
@@ -17,7 +18,7 @@ namespace CustomRpTweaks;
 // ammo id when the flare succeeds and calls the BTR (BtrFlarePatches). Each reactive cartridge is two items: the weapon-type item in
 // the inventory and the ammo it fires, linked through the weapon's defAmmo.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload + 2)]
-public class BtrFlareItems(CustomItemService customItemService, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
+public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
 {
     // fixed template ids (the client plugin has the ammo id too)
     public const string CartridgeId = "6a1b7c0d4e5f60718293a4b5";
@@ -78,7 +79,8 @@ public class BtrFlareItems(CustomItemService customItemService, ISptLogger<BtrFl
 
         if (ammo.Success && cartridge.Success)
         {
-            logger.Info($"[CustomRpTweaks] BTR signal cartridge added (item {CartridgeId}, ammo {AmmoId})");
+            var places = AllowWhereWhiteIsAllowed();
+            logger.Info($"[CustomRpTweaks] BTR signal cartridge added (item {CartridgeId}, ammo {AmmoId}), allowed in {places} slot/container filters like the white one");
         }
         else
         {
@@ -86,6 +88,54 @@ public class BtrFlareItems(CustomItemService customItemService, ISptLogger<BtrFl
         }
 
         return Task.CompletedTask;
+    }
+
+    // Slots and containers list what they accept by item id (the pockets' special slots name every flare), so a clone fits nowhere until it is added
+    // to the same lists as the white cartridge and its ammo. Returns how many filters it was added to.
+    private int AllowWhereWhiteIsAllowed()
+    {
+        var added = 0;
+        var white = new MongoId(WhiteCartridge);
+        var whiteAmmo = new MongoId(WhiteAmmo);
+        var cartridge = new MongoId(CartridgeId);
+        var ammo = new MongoId(AmmoId);
+
+        void Add(HashSet<MongoId>? filter)
+        {
+            if (filter is null)
+            {
+                return;
+            }
+
+            if (filter.Contains(white) && filter.Add(cartridge))
+            {
+                added++;
+            }
+            if (filter.Contains(whiteAmmo) && filter.Add(ammo))
+            {
+                added++;
+            }
+        }
+
+        foreach (var item in templateTable.Items.Values)
+        {
+            foreach (var slot in item.Properties?.Slots ?? [])
+            {
+                foreach (var filter in slot.Properties?.Filters ?? [])
+                {
+                    Add(filter.Filter);
+                }
+            }
+            foreach (var grid in item.Properties?.Grids ?? [])
+            {
+                foreach (var filter in grid.Properties?.Filters ?? [])
+                {
+                    Add(filter.Filter);
+                }
+            }
+        }
+
+        return added;
     }
 }
 
