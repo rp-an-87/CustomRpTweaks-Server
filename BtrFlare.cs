@@ -18,7 +18,7 @@ namespace CustomRpTweaks;
 // ammo id when the flare succeeds and calls the BTR (BtrFlarePatches). Each reactive cartridge is two items: the weapon-type item in
 // the inventory and the ammo it fires, linked through the weapon's defAmmo.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload + 2)]
-public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
+public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, TradersTable tradersTable, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
 {
     // fixed template ids (the client plugin has the ammo id too)
     public const string CartridgeId = "6a1b7c0d4e5f60718293a4b5";
@@ -81,6 +81,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
         {
             var places = AllowWhereWhiteIsAllowed();
             logger.Info($"[CustomRpTweaks] BTR signal cartridge added (item {CartridgeId}, ammo {AmmoId}), allowed in {places} slot/container filters like the white one");
+            AddTraderOffers(cfg.Trader);
         }
         else
         {
@@ -88,6 +89,61 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
         }
 
         return Task.CompletedTask;
+    }
+
+    // The trader sells the cartridge to anyone: for roubles, and for a barter. What keeps it useless early is the BTR driver standing check in the client.
+    // Ids of the two offers are fixed so they stay the same between restarts.
+    private const string RoublesId = "5449016a4bdc2d6f028b456f";
+    private static readonly MongoId RoubleOfferId = new("6a1b7c0d4e5f60718293a4b7");
+    private static readonly MongoId BarterOfferId = new("6a1b7c0d4e5f60718293a4b8");
+
+    private void AddTraderOffers(BtrFlareTraderConfig trader)
+    {
+        if (!trader.Enabled)
+        {
+            return;
+        }
+
+        var assort = tradersTable.GetTrader(new MongoId(trader.TraderId))?.Assort;
+        if (assort is null)
+        {
+            logger.Warning($"[CustomRpTweaks] BTR signal cartridge: trader {trader.TraderId} not found, no offers added");
+            return;
+        }
+
+        if (trader.RoublePrice > 0)
+        {
+            AddOffer(assort, RoubleOfferId, trader, [[new BarterScheme { Template = new MongoId(RoublesId), Count = trader.RoublePrice }]]);
+        }
+
+        var barter = trader.Barter.Where(b => b.Count > 0 && !string.IsNullOrWhiteSpace(b.Item)).Select(b => new BarterScheme { Template = new MongoId(b.Item), Count = b.Count }).ToList();
+        if (barter.Count > 0)
+        {
+            AddOffer(assort, BarterOfferId, trader, [barter]);
+        }
+
+        logger.Info($"[CustomRpTweaks] BTR signal cartridge offered by trader {trader.TraderId} at loyalty level {trader.LoyaltyLevel}: {(trader.RoublePrice > 0 ? trader.RoublePrice + " RUB" : "no rouble offer")}, {(barter.Count > 0 ? "barter " + string.Join(" + ", barter.Select(b => b.Count + "x " + b.Template)) : "no barter offer")}");
+    }
+
+    private static void AddOffer(TraderAssort assort, MongoId offerId, BtrFlareTraderConfig trader, List<List<BarterScheme>> scheme)
+    {
+        assort.Items.RemoveAll(item => item.Id == offerId);
+        assort.Items.Add(new Item
+        {
+            Id = offerId,
+            Template = new MongoId(CartridgeId),
+            ParentId = "hideout",
+            SlotId = "hideout",
+            Upd = new Upd
+            {
+                UnlimitedCount = true,
+                StackObjectsCount = 9999999,
+                BuyRestrictionMax = trader.BuyLimit,
+                BuyRestrictionCurrent = 0,
+            },
+        });
+        assort.BarterScheme[offerId] = scheme;
+        assort.LoyalLevelItems[offerId] = trader.LoyaltyLevel;
     }
 
     // Slots and containers list what they accept by item id (the pockets' special slots name every flare), so a clone fits nowhere until it is added
@@ -145,4 +201,26 @@ public class BtrFlareConfig
     [JsonPropertyName("enabled")] public bool Enabled { get; set; }
     // handbook and flea price of the cartridge, in roubles
     [JsonPropertyName("handbookPrice")] public double HandbookPrice { get; set; } = 15000;
+    // the trader sells it (an offer for roubles and one for a barter)
+    [JsonPropertyName("trader")] public BtrFlareTraderConfig Trader { get; set; } = new();
+}
+
+public class BtrFlareTraderConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    // Prapor
+    [JsonPropertyName("traderId")] public string TraderId { get; set; } = "54cb50c76803fa8b248b4571";
+    [JsonPropertyName("loyaltyLevel")] public int LoyaltyLevel { get; set; } = 2;
+    // roubles for the rouble offer, 0 = no rouble offer
+    [JsonPropertyName("roublePrice")] public double RoublePrice { get; set; } = 20000;
+    // how many a profile can buy per trader restock
+    [JsonPropertyName("buyLimit")] public int BuyLimit { get; set; } = 2;
+    // the barter offer: everything in the list at once, an empty list = no barter offer. Default: a white reactive cartridge (what it is made from) and military cable
+    [JsonPropertyName("barter")] public List<BtrBarterItem> Barter { get; set; } = [new() { Item = "62178be9d0050232da3485d9", Count = 1 }, new() { Item = "5d0375ff86f774186372f685", Count = 1 }];
+}
+
+public class BtrBarterItem
+{
+    [JsonPropertyName("item")] public string Item { get; set; } = "";
+    [JsonPropertyName("count")] public double Count { get; set; } = 1;
 }

@@ -82,7 +82,18 @@
   },
   "btrFlare": {
     "enabled": true,
-    "handbookPrice": 15000
+    "handbookPrice": 15000,
+    "trader": {
+      "enabled": true,
+      "traderId": "54cb50c76803fa8b248b4571",
+      "loyaltyLevel": 2,
+      "roublePrice": 20000,
+      "buyLimit": 2,
+      "barter": [
+        { "item": "62178be9d0050232da3485d9", "count": 1 },
+        { "item": "5d0375ff86f774186372f685", "count": 1 }
+      ]
+    }
   },
   "wholeResources": {
     "enabled": true
