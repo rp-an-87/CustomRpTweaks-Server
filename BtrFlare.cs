@@ -3,11 +3,15 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
+using HarmonyLib;
+using SPTarkov.Server.Core.Generators.Ragfair;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
+using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services.Modding.Custom;
+using SPTarkov.Server.Core.Services.Ragfair;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
@@ -18,9 +22,11 @@ namespace CustomRpTweaks;
 // ammo id when the flare succeeds and calls the BTR (BtrFlarePatches). Each reactive cartridge is two items: the weapon-type item in
 // the inventory and the ammo it fires, linked through the weapon's defAmmo.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload + 2)]
-public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, TradersTable tradersTable, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
+public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, TradersTable tradersTable, RagfairConfig ragfairConfig, RagfairOfferService ragfairOfferService, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
 {
     // fixed template ids (the client plugin has the ammo id too)
+    internal static BtrFlareItems? Instance;
+
     public const string CartridgeId = "6a1b7c0d4e5f60718293a4b5";
     public const string AmmoId = "6a1b7c0d4e5f60718293a4b6";
 
@@ -48,8 +54,9 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             NewItemName = "patron_rsp_btr_signal",
             HandbookParentId = HandbookAmmoParent,
             HandbookPriceRoubles = 100,
-            FleaPriceRoubles = 100,
+            AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
+            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false },
             Locales = new Dictionary<string, LocaleDetails>
             {
                 ["en"] = new() { Name = "BTR signal flare", ShortName = "BTR flare", Description = "Signal flare of the BTR crew." },
@@ -61,10 +68,10 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             ParentId = WeaponParent,
             NewId = CartridgeId,
             NewItemName = "weapon_rsp30_btr_signal",
-            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId) },
+            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = false },
             HandbookParentId = HandbookWeaponParent,
             HandbookPriceRoubles = cfg.HandbookPrice,
-            FleaPriceRoubles = cfg.HandbookPrice,
+            AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
             Locales = new Dictionary<string, LocaleDetails>
             {
@@ -82,6 +89,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             var places = AllowWhereWhiteIsAllowed();
             logger.Info($"[CustomRpTweaks] BTR signal cartridge added (item {CartridgeId}, ammo {AmmoId}), allowed in {places} slot/container filters like the white one");
             AddTraderOffers(cfg.Trader);
+            KeepOffTheFlea();
         }
         else
         {
@@ -89,6 +97,27 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
         }
 
         return Task.CompletedTask;
+    }
+
+    // Not on the flea market: no player or generated offers (the custom flea blacklist; the items also say CanSellOnRagfair = false and have no flea
+    // price), and the trader's offers for it are taken off the flea again after each time the game lists a trader's assort there. Only the trader sells it.
+    private void KeepOffTheFlea()
+    {
+        ragfairConfig.Dynamic.Blacklist.Custom.Add(new MongoId(CartridgeId));
+        ragfairConfig.Dynamic.Blacklist.Custom.Add(new MongoId(AmmoId));
+        Instance = this;
+        new Harmony("com.rpan87.customrptweaks.btrflare").Patch(
+            AccessTools.Method(typeof(RagfairOfferGenerator), nameof(RagfairOfferGenerator.GenerateFleaOffersForTrader)),
+            postfix: new HarmonyMethod(typeof(BtrFlarePatches), nameof(BtrFlarePatches.TraderOffersPostfix)));
+    }
+
+    internal void RemoveFleaOffers()
+    {
+        var cartridge = new MongoId(CartridgeId);
+        foreach (var offer in ragfairOfferService.GetOffers().Where(o => o.Items?.Count > 0 && o.Items[0].Template == cartridge).ToList())
+        {
+            ragfairOfferService.RemoveOfferById(offer.Id);
+        }
     }
 
     // The trader sells the cartridge to anyone: for roubles, and for a barter. What keeps it useless early is the BTR driver standing check in the client.
@@ -195,6 +224,15 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
     }
 }
 
+public static class BtrFlarePatches
+{
+    public static void TraderOffersPostfix()
+    {
+        try { BtrFlareItems.Instance?.RemoveFleaOffers(); }
+        catch (Exception e) { Console.Error.WriteLine($"[CustomRpTweaks] BTR signal cartridge: removing its trader offers from the flea failed: {e}"); }
+    }
+}
+
 public class BtrFlareConfig
 {
     // adds the BTR signal cartridge (spawn it with admin commands; the client plugin does the BTR call)
@@ -212,11 +250,11 @@ public class BtrFlareTraderConfig
     [JsonPropertyName("traderId")] public string TraderId { get; set; } = "54cb50c76803fa8b248b4571";
     [JsonPropertyName("loyaltyLevel")] public int LoyaltyLevel { get; set; } = 2;
     // roubles for the rouble offer, 0 = no rouble offer
-    [JsonPropertyName("roublePrice")] public double RoublePrice { get; set; } = 20000;
+    [JsonPropertyName("roublePrice")] public double RoublePrice { get; set; } = 30000;
     // how many a profile can buy per trader restock
     [JsonPropertyName("buyLimit")] public int BuyLimit { get; set; } = 2;
-    // the barter offer: everything in the list at once, an empty list = no barter offer. Default: a white reactive cartridge (what it is made from) and military cable
-    [JsonPropertyName("barter")] public List<BtrBarterItem> Barter { get; set; } = [new() { Item = "62178be9d0050232da3485d9", Count = 1 }, new() { Item = "5d0375ff86f774186372f685", Count = 1 }];
+    // the barter offer: everything in the list at once, an empty list = no barter offer. Default: a white reactive cartridge (what it is made from) and two military cables
+    [JsonPropertyName("barter")] public List<BtrBarterItem> Barter { get; set; } = [new() { Item = "62178be9d0050232da3485d9", Count = 1 }, new() { Item = "5d0375ff86f774186372f685", Count = 2 }];
 }
 
 public class BtrBarterItem
