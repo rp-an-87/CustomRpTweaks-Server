@@ -80,6 +80,10 @@
   "waterFilter": {
     "enabled": true
   },
+  "btrFlare": {
+    "enabled": true,
+    "handbookPrice": 15000
+  },
   "wholeResources": {
     "enabled": true
   },

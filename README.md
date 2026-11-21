@@ -11,6 +11,7 @@ Based on the tweak features of [LootValuePlus](https://github.com/rp-an-87/LootV
 | `extracts.chances.enabled` / `.locations` | Sets the appearance chance (0-100) of every variable extract, per map (`bigmap`, `interchange`, `laboratory`, `lighthouse`, `shoreline`, `tarkovstreets`, `woods`, ...) |
 | `extracts.coop.enabled` / `.amount` | Turns scav-cooperation extracts into paid extracts costing `amount` euros |
 | `btr.enabled` / `.locations.<Map>` | Per map (`Woods`, `TarkovStreets`, ...): spawn `chance`, `stopDuration` and `spawnTime` (`min`/`max`, seconds) |
+| `btrFlare.enabled` / `.handbookPrice` | Adds the "ROP-30 reactive signal cartridge (BTR)" (a clone of the white one, which has no effect of its own; two items: cartridge and ammo). The client plugin makes it call the BTR. Spawn it with admin commands (template `6a1b7c0d4e5f60718293a4b5`) or add a recipe/trader offer yourself |
 | `containers.allowItems.thiccItemCase` / `.itemCase` | Which cases get extra allowed item groups |
 | `containers.allowItems.items.secureContainers` / `.ammoBoxes` / `.specials` | Which item groups are added to those cases |
 | `pockets.enabled` / `.specialSlots` / `.specialSlotsUnheard` | Total special slots on the pockets, for standard editions and for Unheard Edition (3 = vanilla, max 6). Extra slots copy the item filters of SpecialSlot3 |

@@ -51,6 +51,8 @@
                                 <MudItem xs="6" md="3"><MudNumericField T="float" Label="Spawn after max (s)" Min="0" Variant="Variant.Outlined" @bind-Value="location.SpawnTime.Max" /></MudItem>
                             </MudGrid>
                         }
+                        <MudSwitch T="bool" Color="Color.Warning" Label="BTR signal cartridge: add the item that calls the BTR (needs the client plugin)" @bind-Value="_config.BtrFlare!.Enabled" />
+                        <MudNumericField T="double" Label="BTR signal cartridge price (roubles)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.BtrFlare!.HandbookPrice" />
                     </MudStack>
                 </MudPaper>
 

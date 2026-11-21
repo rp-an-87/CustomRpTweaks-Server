@@ -449,6 +449,7 @@ public class TweaksConfigStore(ModHelper modHelper)
         config.Stacks ??= new StacksConfig();
         config.TraderOverstock ??= new TraderOverstockConfig();
         config.WaterFilter ??= new WaterFilterConfig();
+        config.BtrFlare ??= new BtrFlareConfig();
         config.WholeResources ??= new WholeResourcesConfig();
         config.SkillCap ??= new SkillCapConfig();
         config.RaidSkills ??= new RaidSkillsConfig();
@@ -481,6 +482,7 @@ public class TweaksConfig
     [JsonPropertyName("bossGpCoins")] public BossGpCoinsConfig? BossGpCoins { get; set; }
     [JsonPropertyName("traderOverstock")] public TraderOverstockConfig? TraderOverstock { get; set; }
     [JsonPropertyName("waterFilter")] public WaterFilterConfig? WaterFilter { get; set; }
+    [JsonPropertyName("btrFlare")] public BtrFlareConfig? BtrFlare { get; set; }
     [JsonPropertyName("wholeResources")] public WholeResourcesConfig? WholeResources { get; set; }
     [JsonPropertyName("skillCap")] public SkillCapConfig? SkillCap { get; set; }
     [JsonPropertyName("raidSkills")] public RaidSkillsConfig? RaidSkills { get; set; }
