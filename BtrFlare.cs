@@ -142,8 +142,9 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
         }
     }
 
-    // The trader sells the cartridge to anyone: for roubles, and for a barter (the same for the signal pistol round). What keeps it useless early is the
-    // BTR driver standing check in the client. Ids of the offers are fixed so they stay the same between restarts.
+    // The trader sells the cartridge to anyone: for a barter (two military cables) from the low level, for roubles only from a high one (the same for the
+    // signal pistol round). What keeps it useless early is the BTR driver standing check in the client. Ids of the offers are fixed so they stay the same
+    // between restarts.
     private const string RoublesId = "5449016a4bdc2d6f028b456f";
     private static readonly MongoId RoubleOfferId = new("6a1b7c0d4e5f60718293a4b7");
     private static readonly MongoId BarterOfferId = new("6a1b7c0d4e5f60718293a4b8");
@@ -172,7 +173,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
     {
         if (roublePrice > 0)
         {
-            AddOffer(assort, roubleOfferId, templateId, trader.LoyaltyLevel, buyLimit, [[new BarterScheme { Template = new MongoId(RoublesId), Count = roublePrice }]]);
+            AddOffer(assort, roubleOfferId, templateId, trader.RoubleLoyaltyLevel, buyLimit, [[new BarterScheme { Template = new MongoId(RoublesId), Count = roublePrice }]]);
         }
 
         var barter = barterItems.Where(b => b.Count > 0 && !string.IsNullOrWhiteSpace(b.Item)).Select(b => new BarterScheme { Template = new MongoId(b.Item), Count = b.Count }).ToList();
@@ -181,7 +182,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             AddOffer(assort, barterOfferId, templateId, trader.LoyaltyLevel, buyLimit, [barter]);
         }
 
-        logger.Info($"[CustomRpTweaks] BTR signal {what} offered by trader {trader.TraderId} at loyalty level {trader.LoyaltyLevel}: {(roublePrice > 0 ? roublePrice + " RUB" : "no rouble offer")}, {(barter.Count > 0 ? "barter " + string.Join(" + ", barter.Select(b => b.Count + "x " + b.Template)) : "no barter offer")}");
+        logger.Info($"[CustomRpTweaks] BTR signal {what} offered by trader {trader.TraderId}: {(roublePrice > 0 ? roublePrice + " RUB at loyalty level " + trader.RoubleLoyaltyLevel : "no rouble offer")}, {(barter.Count > 0 ? "barter at loyalty level " + trader.LoyaltyLevel + ": " + string.Join(" + ", barter.Select(b => b.Count + "x " + b.Template)) : "no barter offer")}");
     }
 
     private static void AddOffer(TraderAssort assort, MongoId offerId, string templateId, int loyaltyLevel, int buyLimit, List<List<BarterScheme>> scheme)
@@ -286,17 +287,20 @@ public class BtrFlareTraderConfig
     [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
     // Prapor
     [JsonPropertyName("traderId")] public string TraderId { get; set; } = "54cb50c76803fa8b248b4571";
+    // loyalty level of the barter offer
     [JsonPropertyName("loyaltyLevel")] public int LoyaltyLevel { get; set; } = 2;
+    // loyalty level of the rouble offer
+    [JsonPropertyName("roubleLoyaltyLevel")] public int RoubleLoyaltyLevel { get; set; } = 4;
     // roubles for the rouble offer, 0 = no rouble offer
-    [JsonPropertyName("roublePrice")] public double RoublePrice { get; set; } = 30000;
+    [JsonPropertyName("roublePrice")] public double RoublePrice { get; set; } = 100830;
     // how many a profile can buy per trader restock
     [JsonPropertyName("buyLimit")] public int BuyLimit { get; set; } = 2;
-    // the barter offer: everything in the list at once, an empty list = no barter offer. Default: a white reactive cartridge (what it is made from) and two military cables
-    // the loose 26x75 round for the ZiD SP-81 signal pistol: same trader and level, own price, limit and barter (a white 26x75 round and two military cables)
-    [JsonPropertyName("ammoRoublePrice")] public double AmmoRoublePrice { get; set; } = 20000;
+    // the barter offer: everything in the list at once, an empty list = no barter offer. Default: two military cables
+    // the loose 26x75 round for the ZiD SP-81 signal pistol: same trader and level, own price, limit and barter (two military cables)
+    [JsonPropertyName("ammoRoublePrice")] public double AmmoRoublePrice { get; set; } = 99470;
     [JsonPropertyName("ammoBuyLimit")] public int AmmoBuyLimit { get; set; } = 4;
-    [JsonPropertyName("ammoBarter")] public List<BtrBarterItem> AmmoBarter { get; set; } = [new() { Item = "62389bc9423ed1685422dc57", Count = 1 }, new() { Item = "5d0375ff86f774186372f685", Count = 2 }];
-    [JsonPropertyName("barter")] public List<BtrBarterItem> Barter { get; set; } = [new() { Item = "62178be9d0050232da3485d9", Count = 1 }, new() { Item = "5d0375ff86f774186372f685", Count = 2 }];
+    [JsonPropertyName("ammoBarter")] public List<BtrBarterItem> AmmoBarter { get; set; } = [new() { Item = "5d0375ff86f774186372f685", Count = 2 }];
+    [JsonPropertyName("barter")] public List<BtrBarterItem> Barter { get; set; } = [new() { Item = "5d0375ff86f774186372f685", Count = 2 }];
 }
 
 public class BtrBarterItem

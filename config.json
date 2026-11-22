@@ -88,16 +88,15 @@
       "enabled": true,
       "traderId": "54cb50c76803fa8b248b4571",
       "loyaltyLevel": 2,
-      "roublePrice": 30000,
+      "roubleLoyaltyLevel": 4,
+      "roublePrice": 100830,
       "buyLimit": 2,
-      "ammoRoublePrice": 20000,
+      "ammoRoublePrice": 99470,
       "ammoBuyLimit": 4,
       "ammoBarter": [
-        { "item": "62389bc9423ed1685422dc57", "count": 1 },
         { "item": "5d0375ff86f774186372f685", "count": 2 }
       ],
       "barter": [
-        { "item": "62178be9d0050232da3485d9", "count": 1 },
         { "item": "5d0375ff86f774186372f685", "count": 2 }
       ]
     }
