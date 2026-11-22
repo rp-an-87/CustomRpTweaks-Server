@@ -54,7 +54,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             HandbookPriceRoubles = 100,
             AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
-            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = true, BackgroundColor = "violet" },
+            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false, BackgroundColor = "violet" },
             Locales = new Dictionary<string, LocaleDetails>
             {
                 ["en"] = new() { Name = "BTR signal flare", ShortName = "BTR flare", Description = "Signal flare of the BTR crew." },
@@ -66,7 +66,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             ParentId = WeaponParent,
             NewId = CartridgeId,
             NewItemName = "weapon_rsp30_btr_signal",
-            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = true, BackgroundColor = "violet" },
+            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = false, BackgroundColor = "violet" },
             HandbookParentId = HandbookWeaponParent,
             HandbookPriceRoubles = cfg.HandbookPrice,
             AddToFleaPriceDb = false,
@@ -92,7 +92,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             HandbookPriceRoubles = cfg.AmmoHandbookPrice,
             AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
-            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = true, BackgroundColor = "violet" },
+            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false, BackgroundColor = "violet" },
             Locales = new Dictionary<string, LocaleDetails>
             {
                 ["en"] = new() { Name = "26x75mm BTR signal flare cartridge", ShortName = "BTR flare", Description = "Signal flare for the ZiD SP-81 signal pistol. Fired into the sky, it tells the BTR crew where to pick you up." },
@@ -114,7 +114,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
         return Task.CompletedTask;
     }
 
-    // No generated flea offers for these (the custom flea blacklist; they also have no flea price). The flea still lists the trader's own offers, which is
+    // No generated flea offers and no player listing for these (the custom flea blacklist, CanSellOnRagfair = false, no flea price). The flea still lists the trader's own offers (the server does not hide trader offers of banned items), which is
     // what flea searches (linked search, filter by item) find; only the trader sells them.
     private void KeepOffTheFlea()
     {
