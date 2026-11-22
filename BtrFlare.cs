@@ -3,15 +3,12 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
-using HarmonyLib;
-using SPTarkov.Server.Core.Generators.Ragfair;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services.Modding.Custom;
-using SPTarkov.Server.Core.Services.Ragfair;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
@@ -22,11 +19,9 @@ namespace CustomRpTweaks;
 // ammo id when the flare succeeds and calls the BTR (BtrFlarePatches). Each reactive cartridge is two items: the weapon-type item in
 // the inventory and the ammo it fires, linked through the weapon's defAmmo.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload + 2)]
-public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, TradersTable tradersTable, RagfairConfig ragfairConfig, RagfairOfferService ragfairOfferService, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
+public class BtrFlareItems(CustomItemService customItemService, TemplateTable templateTable, TradersTable tradersTable, RagfairConfig ragfairConfig, ISptLogger<BtrFlareItems> logger, ModHelper modHelper) : IOnLoad
 {
     // fixed template ids (the client plugin has the ammo id too)
-    internal static BtrFlareItems? Instance;
-
     public const string CartridgeId = "6a1b7c0d4e5f60718293a4b5";
     public const string AmmoId = "6a1b7c0d4e5f60718293a4b6";
     // the same flare as a loose 26x75 round for the ZiD SP-81 signal pistol (the gun is kept, the rounds are bought)
@@ -59,7 +54,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             HandbookPriceRoubles = 100,
             AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
-            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false, BackgroundColor = "violet" },
+            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = true, BackgroundColor = "violet" },
             Locales = new Dictionary<string, LocaleDetails>
             {
                 ["en"] = new() { Name = "BTR signal flare", ShortName = "BTR flare", Description = "Signal flare of the BTR crew." },
@@ -71,7 +66,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             ParentId = WeaponParent,
             NewId = CartridgeId,
             NewItemName = "weapon_rsp30_btr_signal",
-            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = false, BackgroundColor = "violet" },
+            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = true, BackgroundColor = "violet" },
             HandbookParentId = HandbookWeaponParent,
             HandbookPriceRoubles = cfg.HandbookPrice,
             AddToFleaPriceDb = false,
@@ -97,7 +92,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             HandbookPriceRoubles = cfg.AmmoHandbookPrice,
             AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
-            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false, BackgroundColor = "violet" },
+            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = true, BackgroundColor = "violet" },
             Locales = new Dictionary<string, LocaleDetails>
             {
                 ["en"] = new() { Name = "26x75mm BTR signal flare cartridge", ShortName = "BTR flare", Description = "Signal flare for the ZiD SP-81 signal pistol. Fired into the sky, it tells the BTR crew where to pick you up." },
@@ -119,27 +114,13 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
         return Task.CompletedTask;
     }
 
-    // Not on the flea market: no player or generated offers (the custom flea blacklist; the items also say CanSellOnRagfair = false and have no flea
-    // price), and the trader's offers for it are taken off the flea again after each time the game lists a trader's assort there. Only the trader sells it.
+    // No generated flea offers for these (the custom flea blacklist; they also have no flea price). The flea still lists the trader's own offers, which is
+    // what flea searches (linked search, filter by item) find; only the trader sells them.
     private void KeepOffTheFlea()
     {
         ragfairConfig.Dynamic.Blacklist.Custom.Add(new MongoId(CartridgeId));
         ragfairConfig.Dynamic.Blacklist.Custom.Add(new MongoId(AmmoId));
         ragfairConfig.Dynamic.Blacklist.Custom.Add(new MongoId(PistolAmmoId));
-        Instance = this;
-        new Harmony("com.rpan87.customrptweaks.btrflare").Patch(
-            AccessTools.Method(typeof(RagfairOfferGenerator), nameof(RagfairOfferGenerator.GenerateFleaOffersForTrader)),
-            postfix: new HarmonyMethod(typeof(BtrFlarePatches), nameof(BtrFlarePatches.TraderOffersPostfix)));
-    }
-
-    internal void RemoveFleaOffers()
-    {
-        var cartridge = new MongoId(CartridgeId);
-        var pistolAmmo = new MongoId(PistolAmmoId);
-        foreach (var offer in ragfairOfferService.GetOffers().Where(o => o.Items?.Count > 0 && (o.Items[0].Template == cartridge || o.Items[0].Template == pistolAmmo)).ToList())
-        {
-            ragfairOfferService.RemoveOfferById(offer.Id);
-        }
     }
 
     // The trader sells the cartridge to anyone: for a barter (two military cables) from the low level, for roubles only from a high one (the same for the
@@ -255,18 +236,17 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
                     Add(filter.Filter);
                 }
             }
+            // chambers (the signal pistol's) and magazine cartridge slots list their ammo too
+            foreach (var slot in (item.Properties?.Chambers ?? []).Concat(item.Properties?.Cartridges ?? []))
+            {
+                foreach (var filter in slot.Properties?.Filters ?? [])
+                {
+                    Add(filter.Filter);
+                }
+            }
         }
 
         return added;
-    }
-}
-
-public static class BtrFlarePatches
-{
-    public static void TraderOffersPostfix()
-    {
-        try { BtrFlareItems.Instance?.RemoveFleaOffers(); }
-        catch (Exception e) { Console.Error.WriteLine($"[CustomRpTweaks] BTR signal cartridge: removing its trader offers from the flea failed: {e}"); }
     }
 }
 
