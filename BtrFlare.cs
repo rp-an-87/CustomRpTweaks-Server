@@ -56,7 +56,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             HandbookPriceRoubles = 100,
             AddToFleaPriceDb = false,
             AddToWeaponShelf = false,
-            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false },
+            OverrideProperties = new TemplateItemProperties { CanSellOnRagfair = false, BackgroundColor = "violet" },
             Locales = new Dictionary<string, LocaleDetails>
             {
                 ["en"] = new() { Name = "BTR signal flare", ShortName = "BTR flare", Description = "Signal flare of the BTR crew." },
@@ -68,7 +68,7 @@ public class BtrFlareItems(CustomItemService customItemService, TemplateTable te
             ParentId = WeaponParent,
             NewId = CartridgeId,
             NewItemName = "weapon_rsp30_btr_signal",
-            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = false },
+            OverrideProperties = new TemplateItemProperties { DefAmmo = new MongoId(AmmoId), CanSellOnRagfair = false, BackgroundColor = "violet" },
             HandbookParentId = HandbookWeaponParent,
             HandbookPriceRoubles = cfg.HandbookPrice,
             AddToFleaPriceDb = false,
