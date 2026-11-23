@@ -70,6 +70,14 @@ public class CollectorLootApplier(LocationTable locationTable, TemplateTable tem
             location?.LooseLoot?.AddTransformer(data => Apply(name, data, cfg));
         }
 
+        if (cfg.StaticContainers.Enabled && cfg.StaticContainers.Items.Count > 0)
+        {
+            foreach (var (name, location) in locations)
+            {
+                location?.StaticLoot?.AddTransformer(data => ApplyStatic(name, data, cfg));
+            }
+        }
+
         if (cfg.Bots.Enabled)
         {
             ApplyBots(cfg);
@@ -268,6 +276,107 @@ public class CollectorLootApplier(LocationTable locationTable, TemplateTable tem
         return data;
     }
 
+    // Static containers (food containers, bags, jackets, ...): the listed items get the average share of the vanilla Collector items
+    // nearest in price that already sit in that container's pool, times the multiplier. Containers without any such reference get nothing.
+    private Dictionary<MongoId, StaticLootDetails>? ApplyStatic(string map, Dictionary<MongoId, StaticLootDetails>? data, CollectorLootConfig cfg)
+    {
+        try
+        {
+            if (data is null)
+            {
+                return data;
+            }
+
+            var vanilla = VanillaCollector.ToHashSet();
+            var counts = new Dictionary<string, int>();
+            foreach (var details in data.Values)
+            {
+                foreach (var tpl in (details.ItemDistribution ?? []).Select(d => d.Tpl.ToString()).Where(vanilla.Contains).Distinct())
+                {
+                    counts[tpl] = counts.GetValueOrDefault(tpl) + 1;
+                }
+            }
+
+            var candidates = counts
+                .Select(kv => (Tpl: kv.Key, Price: PriceOf(kv.Key)))
+                .Where(c => c.Price is not null)
+                .Select(c => (c.Tpl, Price: c.Price!.Value))
+                .ToList();
+            if (candidates.Count == 0)
+            {
+                return data;
+            }
+
+            var refsByItem = new Dictionary<string, HashSet<string>>();
+            foreach (var item in cfg.StaticContainers.Items)
+            {
+                var price = PriceOf(item);
+                if (price is null)
+                {
+                    logger.Warning($"[CustomRpTweaks] Collector loot: no price for {item}, skipped (static containers)");
+                    continue;
+                }
+
+                refsByItem[item] = PickReferences(price.Value, candidates, cfg.ReferenceCount);
+            }
+
+            var added = 0;
+            var containers = new List<string>();
+            foreach (var (containerId, details) in data)
+            {
+                if (details.ItemDistribution is null)
+                {
+                    continue;
+                }
+
+                var dist = details.ItemDistribution.ToList();
+                var total = dist.Sum(d => (double)(d.RelativeProbability ?? 0));
+                if (total <= 0)
+                {
+                    continue;
+                }
+
+                var changed = false;
+                foreach (var (item, refs) in refsByItem)
+                {
+                    var id = new MongoId(item);
+                    if (dist.Any(d => d.Tpl == id))
+                    {
+                        continue; // already there (another mod, or applied twice)
+                    }
+
+                    var shares = dist.Where(d => refs.Contains(d.Tpl.ToString())).Sum(d => (d.RelativeProbability ?? 0) / total);
+                    var share = Math.Min(shares / Math.Max(1, refs.Count) * cfg.StaticContainers.Multiplier, 0.95);
+                    if (share <= 0)
+                    {
+                        continue;
+                    }
+
+                    dist.Add(new ItemDistribution { Tpl = id, RelativeProbability = (float)(total * share / (1 - share)) });
+                    changed = true;
+                    added++;
+                }
+
+                if (changed)
+                {
+                    details.ItemDistribution = dist;
+                    containers.Add(containerId.ToString());
+                }
+            }
+
+            if (_logged.TryAdd("static-" + map, true))
+            {
+                logger.Info($"[CustomRpTweaks] Collector loot {map} static containers: {added} entries added in {containers.Count} container types ({string.Join(", ", containers)})");
+            }
+        }
+        catch (Exception e)
+        {
+            logger.Error($"[CustomRpTweaks] Collector loot failed on static containers of {map}: {e}");
+        }
+
+        return data;
+    }
+
     private static IEnumerable<string> PoolTpls(Spawnpoint sp)
     {
         if (sp.Template?.Items is null || sp.ItemDistribution is null)
@@ -302,6 +411,17 @@ public class CollectorLootConfig
     [JsonPropertyName("minReferenceSpawnpoints")] public int MinReferenceSpawnpoints { get; set; } = 3;
     [JsonPropertyName("items")] public List<string> Items { get; set; } = [];
     [JsonPropertyName("bots")] public CollectorLootBotsConfig Bots { get; set; } = new();
+    [JsonPropertyName("staticContainers")] public CollectorLootStaticConfig StaticContainers { get; set; } = new();
+}
+
+public class CollectorLootStaticConfig
+{
+    // also adds the listed items to static loot containers (food containers, bags, jackets, ...), only where vanilla Collector items spawn
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    // scales the odds against the reference items (1 = same container pool share as them)
+    [JsonPropertyName("multiplier")] public double Multiplier { get; set; } = 1.0;
+    // only these items go into containers (a subset of the collectorLoot items is typical)
+    [JsonPropertyName("items")] public List<string> Items { get; set; } = [];
 }
 
 public class CollectorLootBotsConfig

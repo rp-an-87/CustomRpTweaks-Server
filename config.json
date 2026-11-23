@@ -126,6 +126,11 @@
       "multiplier": 0.5,
       "roles": ["assault", "cursedassault"],
       "excludeItems": ["6937edb912d456a817083e82"]
+    },
+    "staticContainers": {
+      "enabled": true,
+      "multiplier": 1.0,
+      "items": ["6a3557f841667bc4bb00fea4"]
     }
   },
   "scopeZero": {
