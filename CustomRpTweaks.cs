@@ -62,6 +62,9 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         var modPath = modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
         var config = modHelper.GetJsonDataFromFile<TweaksConfig>(modPath, "config.json");
 
+        // the BTR maps SPT ships; one a map backport adds later (Manimal's Lighthouse) is only used while that backport is played
+        BackportVariants.VanillaBtrMaps = templateTable.LocationServices.BtrServerSettings.ServerMapBTRSettings.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         ApplyExtracts(config.Extracts);
         ApplyContainers(config.Containers);
         ApplyPockets(config.Pockets);

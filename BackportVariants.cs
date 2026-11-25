@@ -24,9 +24,16 @@ namespace CustomRpTweaks;
 // stored data: MapVariants copies configuration changes made to a backport onto the shipped map, which would mix the two up.
 // A setting a backport does not have inherits the shipped map's.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 5)]
-public class BackportVariants(IServiceProvider services, LocationTable locationTable, ISptLogger<BackportVariants> logger, ModHelper modHelper) : IOnLoad
+public class BackportVariants(IServiceProvider services, LocationTable locationTable, TemplateTable templateTable, ISptLogger<BackportVariants> logger, ModHelper modHelper) : IOnLoad
 {
     internal static BackportVariants? Instance;
+
+    // BTR maps SPT itself ships (Woods, Streets, ...), set by TweaksApplier before any backport loads
+    internal static HashSet<string> VanillaBtrMaps = new(StringComparer.OrdinalIgnoreCase);
+
+    // chance a backport-only BTR map had before it was switched off for a shipped-map raid
+    private readonly Dictionary<string, double> _btrChance = new(StringComparer.OrdinalIgnoreCase);
+    private BtrConfig? _btr;
 
     private const string EuroId = "569668774bdc2da2298b4568";
 
@@ -67,6 +74,7 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
 
             var config = modHelper.GetJsonDataFromFile<TweaksConfig>(_modPath, "config.json");
             _extracts = config.Extracts;
+            _btr = config.Btr;
             Instance = this;
 
             var target = AccessTools.Method(typeof(LocationLifecycleService), "GenerateLocationAndLoot");
@@ -172,11 +180,40 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
         }
     }
 
+    // A BTR map that only a backport brings (Manimal's Lighthouse) must not spawn a BTR on the shipped map, which has none of its
+    // scenery: its chance is 0 while the shipped map is served and its own again while the backport is. Settings are sent with the
+    // raid, after this runs.
+    private void ApplyBtr(string locationName, string? servedKey)
+    {
+        var maps = templateTable.LocationServices.BtrServerSettings.ServerMapBTRSettings;
+        foreach (var (btrName, settings) in maps)
+        {
+            if (VanillaBtrMaps.Contains(btrName) || !btrName.Equals(locationName, StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (servedKey is null)
+            {
+                if (settings.ChanceSpawn != 0)
+                {
+                    _btrChance[btrName] = settings.ChanceSpawn;
+                    settings.ChanceSpawn = 0;
+                    logger.Info($"[CustomRpTweaks] BTR {btrName}: off, the shipped map is served (the BTR only exists on the backport)");
+                }
+            }
+            else if (_btrChance.TryGetValue(btrName, out var chance))
+            {
+                settings.ChanceSpawn = chance;
+                _btrChance.Remove(btrName);
+                logger.Info($"[CustomRpTweaks] BTR {btrName}: chance {chance}, the backport is served");
+            }
+        }
+    }
+
     internal void Apply(string locationName, LocationBase? raid)
     {
-        if (raid?.Exits is null || _extracts is null) return;
-
         var key = ServedKey(locationName);
+        ApplyBtr(locationName, key);
+
+        if (raid?.Exits is null || _extracts is null) return;
         if (key is null) return;
 
         var map = locationName.ToLowerInvariant();

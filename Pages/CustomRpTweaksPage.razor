@@ -54,7 +54,7 @@
                         @foreach (var map in _config.Btr!.Locations.Keys.ToList())
                         {
                             var location = _config.Btr!.Locations[map];
-                            <MudText Typo="Typo.subtitle1">@map</MudText>
+                            <MudText Typo="Typo.subtitle1">@BtrLabel(map)</MudText>
                             <MudGrid>
                                 <MudItem xs="6" md="2"><MudNumericField T="double" Label="Chance" Min="0" Max="100" Variant="Variant.Outlined" @bind-Value="location.Chance" /></MudItem>
                                 <MudItem xs="6" md="2"><MudNumericField T="float" Label="Stop min (s)" Min="0" Variant="Variant.Outlined" @bind-Value="location.StopDuration.Min" /></MudItem>
@@ -212,6 +212,10 @@
 
 @code {
     private TweaksConfig? _config;
+
+    // a BTR map the game does not ship was added by a map backport and is only used while that backport is played
+    private static string BtrLabel(string map)
+        => BackportVariants.VanillaBtrMaps.Count > 0 && !BackportVariants.VanillaBtrMaps.Contains(map) ? $"{map} (backport: only used when the backport is played)" : map;
 
     protected override void OnInitialized() => Reload();
 
