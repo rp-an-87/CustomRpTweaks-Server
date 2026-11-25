@@ -31,6 +31,25 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
     // BTR maps SPT itself ships (Woods, Streets, ...), set by TweaksApplier before any backport loads
     internal static HashSet<string> VanillaBtrMaps = new(StringComparer.OrdinalIgnoreCase);
 
+    // "<map>@backport" of the backports found at this start (the web page only shows settings of installed backports)
+    internal static HashSet<string> Detected = new(StringComparer.OrdinalIgnoreCase);
+
+    // map -> who made its backport ("Manimal"), for the web page
+    internal static Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase);
+
+    // "lighthouse@backport" -> "lighthouse (Manimal)"; other keys unchanged
+    internal static string Label(string key)
+    {
+        if (!key.EndsWith("@backport", StringComparison.OrdinalIgnoreCase)) return key;
+        var map = key[..^"@backport".Length];
+        return $"{map} ({(Names.TryGetValue(map, out var name) ? name : "backport")})";
+    }
+
+    // false for a "<map>@backport" setting of a backport that is not installed, and for a BTR map only a backport brings
+    internal static bool IsShown(string key) => !key.EndsWith("@backport", StringComparison.OrdinalIgnoreCase) || Detected.Contains(key);
+
+    internal static bool BtrMapShown(string map) => VanillaBtrMaps.Count == 0 || VanillaBtrMaps.Contains(map) || Detected.Contains(map.ToLowerInvariant() + "@backport");
+
     // chance a backport-only BTR map had before it was switched off for a shipped-map raid
     private readonly Dictionary<string, double> _btrChance = new(StringComparer.OrdinalIgnoreCase);
     private BtrConfig? _btr;
@@ -67,6 +86,8 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
         try
         {
             var detected = DetectBackports();
+            Detected = new HashSet<string>(detected, StringComparer.OrdinalIgnoreCase);
+            Names = VariantNames.Load(services);
             if (detected.Count > 0)
             {
                 Seed(detected);

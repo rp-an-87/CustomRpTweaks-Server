@@ -20,11 +20,11 @@
                         <MudText Typo="Typo.h5">Extract chances</MudText>
                         <MudSwitch T="bool" Color="Color.Warning" Label="Set the appearance chance of every variable extract, per map" @bind-Value="_config.Extracts!.Chances!.Enabled" />
                         <MudGrid>
-                            @foreach (var map in _config.Extracts!.Chances!.Locations.Keys.ToList())
+                            @foreach (var map in _config.Extracts!.Chances!.Locations.Keys.Where(BackportVariants.IsShown).ToList())
                             {
                                 var name = map;
                                 <MudItem xs="6" sm="4" md="3">
-                                    <MudNumericField T="double" Label="@name" Min="0" Max="100" Variant="Variant.Outlined"
+                                    <MudNumericField T="double" Label="@BackportVariants.Label(name)" Min="0" Max="100" Variant="Variant.Outlined"
                                                      Value="_config.Extracts!.Chances!.Locations[name]"
                                                      ValueChanged="@(value => _config.Extracts!.Chances!.Locations[name] = value)" />
                                 </MudItem>
@@ -32,14 +32,14 @@
                         </MudGrid>
                         <MudSwitch T="bool" Color="Color.Warning" Label="Make scav co-op extracts paid" @bind-Value="_config.Extracts!.Coop!.Enabled" />
                         <MudNumericField T="int" Label="Co-op extract price (euros)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.Extracts!.Coop!.Amount" />
-                        @foreach (var key in _config.Extracts!.Coop!.Locations.Keys.ToList())
+                        @foreach (var key in _config.Extracts!.Coop!.Locations.Keys.Where(BackportVariants.IsShown).ToList())
                         {
                             var name = key;
                             <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
-                                <MudSwitch T="bool" Color="Color.Warning" Label="@($"Paid co-op extracts on {name}")"
+                                <MudSwitch T="bool" Color="Color.Warning" Label="@($"Paid co-op extracts on {BackportVariants.Label(name)}")"
                                            Value="_config.Extracts!.Coop!.Locations[name].Enabled"
                                            ValueChanged="@(value => _config.Extracts!.Coop!.Locations[name].Enabled = value)" />
-                                <MudNumericField T="int" Label="@($"Price on {name} (euros)")" Min="0" Variant="Variant.Outlined"
+                                <MudNumericField T="int" Label="@($"Price on {BackportVariants.Label(name)} (euros)")" Min="0" Variant="Variant.Outlined"
                                                  Value="_config.Extracts!.Coop!.Locations[name].Amount"
                                                  ValueChanged="@(value => _config.Extracts!.Coop!.Locations[name].Amount = value)" />
                             </MudStack>
@@ -51,7 +51,7 @@
                     <MudStack Spacing="3">
                         <MudText Typo="Typo.h5">BTR</MudText>
                         <MudSwitch T="bool" Color="Color.Warning" Label="Control the BTR per map" @bind-Value="_config.Btr!.Enabled" />
-                        @foreach (var map in _config.Btr!.Locations.Keys.ToList())
+                        @foreach (var map in _config.Btr!.Locations.Keys.Where(BackportVariants.BtrMapShown).ToList())
                         {
                             var location = _config.Btr!.Locations[map];
                             <MudText Typo="Typo.subtitle1">@BtrLabel(map)</MudText>
@@ -215,7 +215,7 @@
 
     // a BTR map the game does not ship was added by a map backport and is only used while that backport is played
     private static string BtrLabel(string map)
-        => BackportVariants.VanillaBtrMaps.Count > 0 && !BackportVariants.VanillaBtrMaps.Contains(map) ? $"{map} (backport: only used when the backport is played)" : map;
+        => BackportVariants.VanillaBtrMaps.Count > 0 && !BackportVariants.VanillaBtrMaps.Contains(map) ? $"{BackportVariants.Label(map.ToLowerInvariant() + "@backport")}: only used when it is played" : map;
 
     protected override void OnInitialized() => Reload();
 
