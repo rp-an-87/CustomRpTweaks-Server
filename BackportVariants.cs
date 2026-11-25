@@ -23,7 +23,9 @@ namespace CustomRpTweaks;
 // applied to the copy of the map data the server makes for that raid (LocationLifecycleService.GenerateLocationAndLoot), not to the
 // stored data: MapVariants copies configuration changes made to a backport onto the shipped map, which would mix the two up.
 // A setting a backport does not have inherits the shipped map's.
-[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 5)]
+// Late in PostLoad, just before MapVariants' own discovery (PostLoad + 500000): a backport such as Fums' Customs installs its data during
+// PostLoad, so looking earlier would miss it.
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 499000)]
 public class BackportVariants(IServiceProvider services, LocationTable locationTable, TemplateTable templateTable, ISptLogger<BackportVariants> logger, ModHelper modHelper) : IOnLoad
 {
     internal static BackportVariants? Instance;
