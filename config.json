@@ -29,6 +29,11 @@
         "chance": 100,
         "stopDuration": { "min": 90.0, "max": 150.0 },
         "spawnTime": { "min": 60.0, "max": 180.0 }
+      },
+      "Lighthouse": {
+        "chance": 100,
+        "stopDuration": { "min": 90.0, "max": 150.0 },
+        "spawnTime": { "min": 60.0, "max": 180.0 }
       }
     }
   },

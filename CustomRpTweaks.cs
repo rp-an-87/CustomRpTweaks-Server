@@ -63,7 +63,6 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
         var config = modHelper.GetJsonDataFromFile<TweaksConfig>(modPath, "config.json");
 
         ApplyExtracts(config.Extracts);
-        ApplyBtr(config.Btr);
         ApplyContainers(config.Containers);
         ApplyPockets(config.Pockets);
         ApplyTraderRestock(config.TraderRestock);
@@ -141,30 +140,6 @@ public class TweaksApplier(LocationTable locationTable, TemplateTable templateTa
                     logger.Info($"[CustomRpTweaks] {name} coop exit '{exit.Name}' now costs {exit.Count} euros");
                 }
             }
-        }
-    }
-
-    private void ApplyBtr(BtrConfig? cfg)
-    {
-        if (cfg is not { Enabled: true })
-        {
-            return;
-        }
-
-        var maps = templateTable.LocationServices.BtrServerSettings.ServerMapBTRSettings;
-        foreach (var (name, wanted) in cfg.Locations)
-        {
-            if (!maps.TryGetValue(name, out var map))
-            {
-                logger.Warning($"[CustomRpTweaks] BTR map '{name}' not found, skipped");
-                continue;
-            }
-
-            map.ChanceSpawn = wanted.Chance;
-            // Vector3 is an init-only struct: keep Z, replace X (min) and Y (max)
-            map.PauseDurationRange = new SPTarkov.Server.Core.Models.Eft.Common.Vector3(wanted.StopDuration.Min, wanted.StopDuration.Max, map.PauseDurationRange.Z);
-            map.SpawnPeriod = new SPTarkov.Server.Core.Models.Eft.Common.Vector3(wanted.SpawnTime.Min, wanted.SpawnTime.Max, map.SpawnPeriod.Z);
-            logger.Info($"[CustomRpTweaks] BTR {name}: chance {wanted.Chance}, stop {wanted.StopDuration.Min}-{wanted.StopDuration.Max}s, spawn {wanted.SpawnTime.Min}-{wanted.SpawnTime.Max}s");
         }
     }
 
@@ -423,6 +398,40 @@ public class BossGpCoinsApplier(BotTable botTable, BotConfig botConfig, ISptLogg
 
         logger.Info($"CustomRpTweaks: {bosses} boss and {followers} follower bot types can carry GP coins " +
                     $"(bosses {config.Boss.Chance}% for {config.Boss.Min}-{config.Boss.Max}, followers {config.Follower.Chance}% for {config.Follower.Min}-{config.Follower.Max}).");
+        return Task.CompletedTask;
+    }
+}
+
+// Applies the BTR settings. This runs after the map backports have registered their own BTR maps (Manimal's Lighthouse adds
+// "Lighthouse" to the server's BTR map settings at Preload + 4+), which TweaksApplier (Preload + 1) would not see yet.
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad)]
+public class BtrApplier(TemplateTable templateTable, ISptLogger<BtrApplier> logger, ModHelper modHelper) : IOnLoad
+{
+    public Task OnLoadAsync(CancellationToken cancellationToken)
+    {
+        var modPath = modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
+        var cfg = modHelper.GetJsonDataFromFile<TweaksConfig>(modPath, "config.json").Btr;
+        if (cfg is not { Enabled: true })
+        {
+            return Task.CompletedTask;
+        }
+
+        var maps = templateTable.LocationServices.BtrServerSettings.ServerMapBTRSettings;
+        foreach (var (name, wanted) in cfg.Locations)
+        {
+            if (!maps.TryGetValue(name, out var map))
+            {
+                logger.Warning($"[CustomRpTweaks] BTR map '{name}' not found (known: {string.Join(", ", maps.Keys)}), skipped");
+                continue;
+            }
+
+            map.ChanceSpawn = wanted.Chance;
+            // Vector3 is an init-only struct: keep Z, replace X (min) and Y (max)
+            map.PauseDurationRange = new SPTarkov.Server.Core.Models.Eft.Common.Vector3(wanted.StopDuration.Min, wanted.StopDuration.Max, map.PauseDurationRange.Z);
+            map.SpawnPeriod = new SPTarkov.Server.Core.Models.Eft.Common.Vector3(wanted.SpawnTime.Min, wanted.SpawnTime.Max, map.SpawnPeriod.Z);
+            logger.Info($"[CustomRpTweaks] BTR {name}: chance {wanted.Chance}, stop {wanted.StopDuration.Min}-{wanted.StopDuration.Max}s, spawn {wanted.SpawnTime.Min}-{wanted.SpawnTime.Max}s");
+        }
+
         return Task.CompletedTask;
     }
 }
