@@ -215,7 +215,7 @@
 
     // a BTR map the game does not ship was added by a map backport and is only used while that backport is played
     private static string BtrLabel(string map)
-        => BackportVariants.VanillaBtrMaps.Count > 0 && !BackportVariants.VanillaBtrMaps.Contains(map) ? $"{BackportVariants.Label(map.ToLowerInvariant() + "@backport")}: only used when it is played" : map;
+        => BackportVariants.VanillaBtrMaps.Count > 0 && !BackportVariants.VanillaBtrMaps.Contains(map) ? $"{BackportVariants.BtrLabel(map)}: only used when it is played" : map;
 
     protected override void OnInitialized() => Reload();
 

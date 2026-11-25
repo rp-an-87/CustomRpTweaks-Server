@@ -15,16 +15,19 @@ using System.Text.Json.Nodes;
 
 namespace CustomRpTweaks;
 
-// Map backports (served beside the shipped map by the MapVariants mod) get their own extract settings. The extract tweaks of
-// TweaksApplier are written to the shipped maps' data when the server starts, before the backports load, so a backport raid
-// would otherwise ignore them. A backport is "<map>@backport" in config.json (extracts.chances.locations, extracts.coop.locations).
+// Versions of a map that the MapVariants mod serves beside the shipped one (a backport, and others other mods offer) get their own
+// extract settings. The extract tweaks of TweaksApplier are written to the shipped maps' data when the server starts, before the
+// backports load, so a raid on another version would otherwise ignore them. A version is "<map>@<name>" in config.json
+// (extracts.chances.locations, extracts.coop.locations), the name built at start from its author ("manimal", "fums") or, for a version
+// another mod offers, its id ("classic"), so a map can have several.
 //
 // MapVariants is reached by reflection (no reference to it). Which variant is served is asked at raid time and the settings are
 // applied to the copy of the map data the server makes for that raid (LocationLifecycleService.GenerateLocationAndLoot), not to the
 // stored data: MapVariants copies configuration changes made to a backport onto the shipped map, which would mix the two up.
-// A setting a backport does not have inherits the shipped map's.
+// A setting a version does not have inherits the shipped map's.
+//
 // Late in PostLoad, just before MapVariants' own discovery (PostLoad + 500000): a backport such as Fums' Customs installs its data during
-// PostLoad, so looking earlier would miss it.
+// PostLoad, and the other mods register their versions then, so looking earlier would miss them.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 499000)]
 public class BackportVariants(IServiceProvider services, LocationTable locationTable, TemplateTable templateTable, ISptLogger<BackportVariants> logger, ModHelper modHelper) : IOnLoad
 {
@@ -33,24 +36,31 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
     // BTR maps SPT itself ships (Woods, Streets, ...), set by TweaksApplier before any backport loads
     internal static HashSet<string> VanillaBtrMaps = new(StringComparer.OrdinalIgnoreCase);
 
-    // "<map>@backport" of the backports found at this start (the web page only shows settings of installed backports)
+    // "<map>@<name>" of the versions found at this start (the web page only shows settings of installed ones) and who made each
     internal static HashSet<string> Detected = new(StringComparer.OrdinalIgnoreCase);
-
-    // map -> who made its backport ("Manimal"), for the web page
     internal static Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase);
 
-    // "lighthouse@backport" -> "lighthouse (Manimal)"; other keys unchanged
+    // "lighthouse@manimal" -> "lighthouse (Manimal)"; a key without a version is unchanged
     internal static string Label(string key)
     {
-        if (!key.EndsWith("@backport", StringComparison.OrdinalIgnoreCase)) return key;
-        var map = key[..^"@backport".Length];
-        return $"{map} ({(Names.TryGetValue(map, out var name) ? name : "backport")})";
+        var at = key.IndexOf('@');
+        if (at < 0) return key;
+        return $"{key[..at]} ({(Names.TryGetValue(key, out var name) ? name : "variant")})";
     }
 
-    // false for a "<map>@backport" setting of a backport that is not installed, and for a BTR map only a backport brings
-    internal static bool IsShown(string key) => !key.EndsWith("@backport", StringComparison.OrdinalIgnoreCase) || Detected.Contains(key);
+    // false for a "<map>@<name>" setting of a version that is not installed, and for a BTR map only a backport brings
+    internal static bool IsShown(string key) => !key.Contains('@') || Detected.Contains(key);
 
-    internal static bool BtrMapShown(string map) => VanillaBtrMaps.Count == 0 || VanillaBtrMaps.Contains(map) || Detected.Contains(map.ToLowerInvariant() + "@backport");
+    internal static bool BtrMapShown(string map) => VanillaBtrMaps.Count == 0 || VanillaBtrMaps.Contains(map) || Detected.Any(key => key.StartsWith(map + "@", StringComparison.OrdinalIgnoreCase));
+
+    // the label of a BTR map a backport brings
+    internal static string BtrLabel(string map)
+        => Detected.FirstOrDefault(key => key.StartsWith(map + "@", StringComparison.OrdinalIgnoreCase)) is { } key ? Label(key) : map;
+
+    private sealed record Variant(string Map, string VariantId, string Key, string Name);
+
+    // (map, MapVariants' id of the version: "backport" or the id of a source) -> key
+    private readonly Dictionary<(string, string), string> _keys = new();
 
     // chance a backport-only BTR map had before it was switched off for a shipped-map raid
     private readonly Dictionary<string, double> _btrChance = new(StringComparer.OrdinalIgnoreCase);
@@ -81,18 +91,19 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
         _providers = services.GetService(type);
         if (_providers is null || _installedVariant is null || _shipped is null)
         {
-            logger.Warning("[CustomRpTweaks] MapVariants is installed but its Providers service was not found; backport extract settings are off.");
+            logger.Warning("[CustomRpTweaks] MapVariants is installed but its Providers service was not found; extract settings per map version are off.");
             return Task.CompletedTask;
         }
 
         try
         {
-            var detected = DetectBackports();
-            Detected = new HashSet<string>(detected, StringComparer.OrdinalIgnoreCase);
-            Names = VariantNames.Load(services);
-            if (detected.Count > 0)
+            var found = Detect();
+            Detected = new HashSet<string>(found.Select(v => v.Key), StringComparer.OrdinalIgnoreCase);
+            Names = found.ToDictionary(v => v.Key, v => v.Name, StringComparer.OrdinalIgnoreCase);
+            foreach (var variant in found) _keys[(variant.Map, variant.VariantId)] = variant.Key;
+            if (found.Count > 0)
             {
-                Seed(detected);
+                Seed(found);
             }
 
             var config = modHelper.GetJsonDataFromFile<TweaksConfig>(_modPath, "config.json");
@@ -103,43 +114,66 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
             var target = AccessTools.Method(typeof(LocationLifecycleService), "GenerateLocationAndLoot");
             if (target is null)
             {
-                logger.Warning("[CustomRpTweaks] LocationLifecycleService.GenerateLocationAndLoot was not found; backport extract settings are off.");
+                logger.Warning("[CustomRpTweaks] LocationLifecycleService.GenerateLocationAndLoot was not found; extract settings per map version are off.");
                 return Task.CompletedTask;
             }
 
             new Harmony("com.rpan87.customrptweaks.backportvariants").Patch(
                 target,
                 postfix: new HarmonyMethod(typeof(BackportVariantPatches), nameof(BackportVariantPatches.Postfix)));
-            logger.Info($"[CustomRpTweaks] Backport extract settings: {(detected.Count > 0 ? string.Join(", ", detected) : "no backport found")}");
+            logger.Info($"[CustomRpTweaks] Extract settings per map version: {(found.Count > 0 ? string.Join(", ", found.Select(v => v.Key)) : "no other version found")}");
         }
         catch (Exception ex)
         {
-            logger.Error("[CustomRpTweaks] Backport extract settings failed to start; backports use the maps' own extracts.", ex);
+            logger.Error("[CustomRpTweaks] Extract settings per map version failed to start; the other versions use the maps' own extracts.", ex);
         }
 
         return Task.CompletedTask;
     }
 
-    // Maps whose live data is not the shipped data MapVariants captured: a backport replaced it
-    private List<string> DetectBackports()
+    // The versions of each map besides the shipped one: a backport (the live data is not the shipped data MapVariants captured) and
+    // the versions other mods offer as sources
+    private List<Variant> Detect()
     {
-        var found = new List<string>();
-        foreach (var (key, location) in locationTable.GetDictionary())
+        var found = new List<Variant>();
+        var backportNames = VariantNames.Load(services);
+        var sources = VariantNames.Sources(services);
+
+        foreach (var (mapKey, location) in locationTable.GetDictionary())
         {
             if (location?.Base is null) continue;
 
-            var shipped = _shipped!.Invoke(_providers, [key]) as Location;
+            var map = mapKey.ToLowerInvariant();
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var shipped = _shipped!.Invoke(_providers, [mapKey]) as Location;
             if (shipped?.Base is not null && !ReferenceEquals(shipped.Base, location.Base))
             {
-                found.Add(key.ToLowerInvariant() + "@backport");
+                var name = backportNames.GetValueOrDefault(map);
+                var slug = string.IsNullOrEmpty(name) ? "" : VariantNames.Slug(name);
+                if (slug.Length == 0) slug = "backport";
+                used.Add(slug);
+                found.Add(new Variant(map, "backport", $"{map}@{slug}", name ?? "Backport"));
+            }
+
+            if (sources.TryGetValue(mapKey, out var sets) || sources.TryGetValue(map, out sets))
+            {
+                foreach (var set in sets)
+                {
+                    var slug = VariantNames.Slug(set.Id);
+                    if (slug.Length == 0) slug = "source";
+                    var unique = slug;
+                    for (var n = 2; !used.Add(unique); n++) unique = $"{slug}-{n}";
+                    found.Add(new Variant(map, set.Id, $"{map}@{unique}", char.ToUpperInvariant(set.Id[0]) + set.Id[1..]));
+                }
             }
         }
 
         return found;
     }
 
-    // Adds the detected backports to config.json, with the shipped map's values, so they can be edited (once; never overwrites)
-    private void Seed(List<string> backports)
+    // Adds the versions found to config.json, with the shipped map's values, so they can be edited (once; never overwrites)
+    private void Seed(List<Variant> variants)
     {
         var path = Path.Combine(_modPath, "config.json");
         var root = JsonNode.Parse(File.ReadAllText(path), documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?.AsObject();
@@ -150,11 +184,11 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
         var coop = extracts["coop"]?.AsObject();
         var changed = false;
 
-        foreach (var key in backports)
+        foreach (var variant in variants)
         {
-            var map = key[..^"@backport".Length];
+            var key = variant.Key;
 
-            if (chances is not null && !chances.ContainsKey(key) && chances[map] is JsonValue shippedChance)
+            if (chances is not null && !chances.ContainsKey(key) && chances[variant.Map] is JsonValue shippedChance)
             {
                 chances[key] = shippedChance.DeepClone();
                 changed = true;
@@ -183,9 +217,9 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
 
         if (!changed) return;
 
-        File.Copy(path, $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmm}-pre-backports", overwrite: false);
+        File.Copy(path, $"{path}.bak-{DateTime.Now:yyyyMMdd-HHmm}-pre-variants", overwrite: false);
         File.WriteAllText(path, root!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-        logger.Info($"[CustomRpTweaks] Backport extract settings added to config.json: {string.Join(", ", backports)}");
+        logger.Info($"[CustomRpTweaks] Extract settings added to config.json: {string.Join(", ", variants.Select(v => v.Key))}");
     }
 
     // The key of the data set a raid on this map is served from, or null for the shipped map
@@ -195,7 +229,9 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
         {
             var variant = _installedVariant!.Invoke(_providers, [locationName]) as string;
             if (string.IsNullOrEmpty(variant) || variant == "original") return null;
-            return $"{locationName.ToLowerInvariant()}@{variant}";
+
+            var map = locationName.ToLowerInvariant();
+            return _keys.TryGetValue((map, variant), out var key) ? key : $"{map}@{variant}";
         }
         catch
         {
@@ -241,7 +277,7 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
 
         var map = locationName.ToLowerInvariant();
 
-        // Extract chances: the variant's own value, else the shipped map's
+        // Extract chances: the version's own value, else the shipped map's
         if (_extracts.Chances is { Enabled: true } chances
             && (chances.Locations.TryGetValue(key, out var chance) || chances.Locations.TryGetValue(map, out chance)))
         {
@@ -255,7 +291,7 @@ public class BackportVariants(IServiceProvider services, LocationTable locationT
             }
         }
 
-        // Paid co-op extracts: the variant's own entry, else the global one
+        // Paid co-op extracts: the version's own entry, else the global one
         var coopEnabled = _extracts.Coop?.Enabled ?? false;
         var coopAmount = _extracts.Coop?.Amount ?? 1000;
         if (_extracts.Coop?.Locations.TryGetValue(key, out var own) == true)
