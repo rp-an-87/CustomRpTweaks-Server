@@ -576,6 +576,14 @@ public class CoopConfig
     [JsonPropertyName("enabled")] public bool Enabled { get; set; }
     // euros charged for each coop extract
     [JsonPropertyName("amount")] public int Amount { get; set; } = 1000;
+    // map backports (see BackportVariants), "<map>@backport" -> own setting; a backport without an entry uses the one above
+    [JsonPropertyName("locations")] public Dictionary<string, CoopVariantConfig> Locations { get; set; } = new();
+}
+
+public class CoopVariantConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("amount")] public int Amount { get; set; } = 1000;
 }
 
 public class BtrConfig

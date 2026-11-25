@@ -32,6 +32,18 @@
                         </MudGrid>
                         <MudSwitch T="bool" Color="Color.Warning" Label="Make scav co-op extracts paid" @bind-Value="_config.Extracts!.Coop!.Enabled" />
                         <MudNumericField T="int" Label="Co-op extract price (euros)" Min="0" Variant="Variant.Outlined" @bind-Value="_config.Extracts!.Coop!.Amount" />
+                        @foreach (var key in _config.Extracts!.Coop!.Locations.Keys.ToList())
+                        {
+                            var name = key;
+                            <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
+                                <MudSwitch T="bool" Color="Color.Warning" Label="@($"Paid co-op extracts on {name}")"
+                                           Value="_config.Extracts!.Coop!.Locations[name].Enabled"
+                                           ValueChanged="@(value => _config.Extracts!.Coop!.Locations[name].Enabled = value)" />
+                                <MudNumericField T="int" Label="@($"Price on {name} (euros)")" Min="0" Variant="Variant.Outlined"
+                                                 Value="_config.Extracts!.Coop!.Locations[name].Amount"
+                                                 ValueChanged="@(value => _config.Extracts!.Coop!.Locations[name].Amount = value)" />
+                            </MudStack>
+                        }
                     </MudStack>
                 </MudPaper>
 
